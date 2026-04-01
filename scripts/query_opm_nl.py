@@ -11,6 +11,7 @@ import time
 import shutil
 from pathlib import Path
 
+from analysis.future_flight_competition import render_future_competition_review
 from common import default_catalog_db, default_mirror_root, default_profile_db, find_report_cpt_path, is_stale_file, load_yaml_or_json, references_dir
 from excel_index_candidates import default_excel_index_db, rank_candidates_from_excel_index
 from extract_adjusted_profit_overview import extract_adjusted_profit_overview_rows
@@ -876,53 +877,6 @@ def run_fast_top_metric_flight_query(intent: dict, mirror_root: Path, profile_db
     if best_item:
         payload["best_item"] = best_item
     return payload
-
-
-def render_future_competition_review(rows: list[dict], report_name: str, source_path: str, filters: dict) -> str:
-    main_rows = [r for r in rows if str(r.get("航班号", "")).strip()]
-    if not main_rows:
-        return f"未在命中报表中找到可分析的主航班数据。\n报表: {report_name}\n来源: {source_path}"
-
-    findings: list[str] = []
-    improvements: list[str] = []
-    for r in main_rows:
-        date_text = str(r.get("航班日期", "")).split(" ")[0]
-        flight_no = str(r.get("航班号", "")).strip()
-        dep_time = str(r.get("时刻", "")).split(" ")[-1][:5]
-        load = _to_float(r.get("现在客座率"))
-        target = _to_float(r.get("本DCP阶段标准客座率目标"))
-        comp_load = _to_float(r.get("竞航客座率"))
-        load_gap = _to_float(r.get("与竞航客座率差"))
-        price_gap = _to_float(r.get("与竞航价格差"))
-        if load is not None and abs(load) <= 1.0:
-            load *= 100.0
-        if target is not None and abs(target) <= 1.0:
-            target *= 100.0
-        if comp_load is not None and abs(comp_load) <= 1.0:
-            comp_load *= 100.0
-        if load_gap is not None and abs(load_gap) <= 1.0:
-            load_gap *= 100.0
-
-        if (target is not None) and (load is not None) and (target - load >= 5):
-            findings.append(f"{date_text} {flight_no} {dep_time} 客座率 {load:.1f}% 低于阶段目标 {target:.1f}%")
-        if (load_gap is not None) and (load_gap <= -5):
-            findings.append(f"{date_text} {flight_no} {dep_time} 客座率较竞航低 {abs(load_gap):.1f} 个点")
-        if (load is not None) and (load >= 86) and (price_gap is not None) and (price_gap <= -500):
-            improvements.append(f"{date_text} {flight_no} {dep_time} 客座率已高位，仍比竞航低价 {abs(price_gap):.0f} 元，可试探提价")
-        if (load is not None) and (load <= 60) and (price_gap is not None) and (price_gap < -300):
-            improvements.append(f"{date_text} {flight_no} {dep_time} 已明显低价但客座率仍弱，需排查机型投放、时刻竞争和渠道投放，不宜只继续降价")
-        elif (load is not None) and (load <= 80) and (price_gap is not None) and (price_gap >= -200):
-            improvements.append(f"{date_text} {flight_no} {dep_time} 客座率偏弱但价格优势不明显，可考虑促销或放舱")
-
-    head = (
-        f"命中报表: {report_name}\n"
-        f"分析航段: {str(filters.get('segment_from') or '')}-{str(filters.get('segment_to') or '')}\n"
-        f"分析区间: {str(filters.get('date_start') or '-')} 到 {str(filters.get('date_end') or '-')}\n"
-        f"来源: {source_path}"
-    )
-    abnormal = "；".join(findings[:4]) if findings else "近三天未见明显异常。"
-    improve = "；".join(improvements[:4]) if improvements else "暂未识别出明确调价/投放改进点。"
-    return f"{head}\n异常判断: {abnormal}\n改进建议: {improve}"
 
 
 def lookup_profit_yoy_snapshot(intent: dict) -> dict | None:
