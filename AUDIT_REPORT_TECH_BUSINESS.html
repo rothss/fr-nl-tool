@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPM NL Skill 审计报告</title>
+  <style>
+    :root {
+      --bg: #f3efe8;
+      --panel: #fffdf9;
+      --ink: #1e1f1c;
+      --muted: #5f635b;
+      --line: #d8ccbb;
+      --brand: #0d5c63;
+      --brand-2: #a85d2a;
+      --good: #256c45;
+      --warn: #8c5a11;
+      --bad: #963333;
+      --shadow: 0 14px 36px rgba(55, 48, 38, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(13,92,99,.10), transparent 26%),
+        radial-gradient(circle at top right, rgba(168,93,42,.10), transparent 22%),
+        linear-gradient(180deg, #f7f3ec 0%, #f1ece4 100%);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+    .wrap {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 26px auto 44px;
+    }
+    .hero, .card {
+      background: var(--panel);
+      border: 1px solid rgba(120, 102, 78, .16);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      padding: 34px 38px;
+      background:
+        linear-gradient(135deg, rgba(13,92,99,.10), rgba(168,93,42,.08)),
+        var(--panel);
+    }
+    .kicker {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(13,92,99,.09);
+      color: var(--brand);
+      font-size: 12px;
+      letter-spacing: .08em;
+    }
+    h1, h2, h3 { margin: 0 0 12px; }
+    h1 { font-size: 34px; line-height: 1.2; margin-top: 14px; }
+    h2 { font-size: 22px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    h3 { font-size: 18px; }
+    p { margin: 0 0 10px; }
+    ul { margin: 8px 0 0 20px; padding: 0; }
+    li { margin: 6px 0; }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: #f3eee7;
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: #7a3f22;
+    }
+    .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .badge {
+      border: 1px solid var(--line);
+      background: #faf6ef;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-top: 20px; }
+    .card { grid-column: span 12; padding: 26px 26px 22px; }
+    .half { grid-column: span 6; }
+    .third { grid-column: span 4; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 22px; }
+    .stat {
+      background: linear-gradient(180deg, #fffaf2 0%, #f4eadf 100%);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+    .stat strong { display: block; font-size: 28px; margin-bottom: 4px; }
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .step {
+      border: 1px solid var(--line);
+      background: #fffaf4;
+      border-radius: 16px;
+      padding: 14px;
+      min-height: 128px;
+    }
+    .num {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      color: white;
+      background: var(--brand);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      background: white;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    th { background: #f6efe6; }
+    .callout {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-left: 5px solid var(--brand-2);
+      background: #f8ece2;
+      border-radius: 12px;
+    }
+    @media (max-width: 960px) {
+      .half, .third { grid-column: span 12; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .pipeline { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .wrap { width: min(100vw - 20px, 1180px); margin: 14px auto 24px; }
+      .hero, .card { padding: 20px 18px; border-radius: 18px; }
+      .stats { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <span class="kicker">BUSINESS + TECH AUDIT</span>
+      <h1>OPM NL Skill 重构完成审计报告</h1>
+      <p>本报告面向技术委员会与业务委员会，说明 OPM 自然语言查询 skill 在本轮重构后的整体架构、功能边界、分支路线、质量控制与审计结论。</p>
+      <div class="badges">
+        <span class="badge">仓库：C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query</span>
+        <span class="badge">基线提交：19e3857</span>
+        <span class="badge">设计基准：TECH_DESIGN.md</span>
+        <span class="badge">测试状态：40 项通过</span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <strong class="good">完成</strong>
+          TECH_DESIGN 主重构
+        </div>
+        <div class="stat">
+          <strong class="good">结构化</strong>
+          意图、规划、数据、分析、渲染
+        </div>
+        <div class="stat">
+          <strong class="warn">保留</strong>
+          legacy 兼容兜底
+        </div>
+        <div class="stat">
+          <strong class="good">40</strong>
+          自动化测试通过
+        </div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>一、审计结论</h2>
+        <div class="callout">
+          结论：本轮重构已达到 <code>TECH_DESIGN.md</code> 规定的目标架构。当前系统已从“单体脚本主导”转为“结构化 orchestration 主导，legacy 兜底”的形态，适合进入受控运行和持续治理阶段。
+        </div>
+        <p>从技术视角看，重构重点已经完成：结构化意图解析、规划、数据获取、分析引擎、渲染、OpenClaw 结果契约和回归测试体系均已落地。从业务视角看，系统已覆盖主要高频查询家族，并能对关键异常场景给出明确、可追溯的解释路径。</p>
+      </section>
+
+      <section class="card">
+        <h2>二、当前整体架构</h2>
+        <div class="pipeline">
+          <div class="step"><div class="num">1</div><h3>Input</h3><p>用户自然语言问题输入。</p></div>
+          <div class="step"><div class="num">2</div><h3>Normalize</h3><p>规范化标点、航点别名、路线表达。</p></div>
+          <div class="step"><div class="num">3</div><h3>Intent</h3><p>规则解析 + 本地小模型补槽 + validator 修复。</p></div>
+          <div class="step"><div class="num">4</div><h3>Planning</h3><p>router、refresh policy、planner 生成确定性计划。</p></div>
+          <div class="step"><div class="num">5</div><h3>Source</h3><p>catalog 选报表，source loader 判断本地文件和 refresh。</p></div>
+          <div class="step"><div class="num">6</div><h3>Extract</h3><p>按报表类型选择通用或专用结构化提取器。</p></div>
+          <div class="step"><div class="num">7</div><h3>Analyze</h3><p>由业务家族分析引擎输出结构化结果。</p></div>
+          <div class="step"><div class="num">8</div><h3>Render</h3><p>输出业务文本与 OpenClaw 结构化 envelope。</p></div>
+        </div>
+      </section>
+
+      <section class="card half">
+        <h2>三、模块分层</h2>
+        <table>
+          <thead><tr><th>层</th><th>关键模块</th><th>职责</th></tr></thead>
+          <tbody>
+            <tr><td>Intent</td><td><code>normalize.py</code> / <code>parser_rules.py</code> / <code>parser_llm.py</code> / <code>validator.py</code></td><td>抽取槽位、补槽、修正、规范化</td></tr>
+            <tr><td>Planning</td><td><code>router.py</code> / <code>refresh_policy.py</code> / <code>planner.py</code></td><td>报表家族选择、刷新策略、固定执行计划</td></tr>
+            <tr><td>Data</td><td><code>catalog.py</code> / <code>schemas.py</code> / <code>source_loader.py</code> / <code>extractor_registry.py</code></td><td>目录检索、schema 校验、source 获取、提取路由</td></tr>
+            <tr><td>Analysis</td><td><code>future_flight_competition.py</code> / <code>airline_yoy.py</code> / <code>ranked_flights.py</code> / <code>single_margin.py</code></td><td>按业务族做结构化分析</td></tr>
+            <tr><td>Render</td><td><code>answer_renderer.py</code> / <code>failure_renderer.py</code></td><td>业务可读答案和失败消息</td></tr>
+            <tr><td>Adapter</td><td><code>openclaw_contract.py</code></td><td>固定 OpenClaw 结果契约</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card half">
+        <h2>四、当前功能覆盖</h2>
+        <ul>
+          <li>未来航班竞对分析：支持未来时间范围、双指标、竞对诊断。</li>
+          <li>航司同比分析：支持净利润同比最佳/最差识别。</li>
+          <li>调整后利润概览：支持“不含发动机大修和飞机退租”等特定口径。</li>
+          <li>前十后十航班：支持“后十首航”提取。</li>
+          <li>前十后十极值：支持小时边际贡献、总边贡 top1。</li>
+          <li>单机边际贡献：支持结构化提取与文本返回。</li>
+          <li>失败契约：支持 route/date/schema/live-refresh 失败的结构化 reason code。</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>五、目前的主要分支路线</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>问题类型</th>
+              <th>路由家族</th>
+              <th>主要报表</th>
+              <th>分析引擎</th>
+              <th>source 策略</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>未来航班 + 航段 + 客座率/票价 + 竞对分析</td>
+              <td><code>future_flight_competition</code></td>
+              <td>未来航班客座率票价分析</td>
+              <td><code>future_flight_competition.py</code></td>
+              <td>本地探测，不满足则 structured refresh</td>
+            </tr>
+            <tr>
+              <td>各航司净利润同比最优/最差</td>
+              <td><code>airline_yoy</code></td>
+              <td>航空集团经营提升分析</td>
+              <td><code>airline_yoy.py</code></td>
+              <td>本地优先，必要时 generic export</td>
+            </tr>
+            <tr>
+              <td>调整后利润概览</td>
+              <td><code>adjusted_profit_overview</code></td>
+              <td>航空集团收入利润概览（调整后）</td>
+              <td><code>airline_yoy.py</code></td>
+              <td>本地优先，必要时 generic export</td>
+            </tr>
+            <tr>
+              <td>后十航班里首航有几条</td>
+              <td><code>ranked_flights</code></td>
+              <td>航空集团前十后十航班</td>
+              <td><code>ranked_flights.py</code></td>
+              <td>本地优先，必要时 structured refresh</td>
+            </tr>
+            <tr>
+              <td>小时边际贡献/总边贡最高航班</td>
+              <td><code>ranked_flights</code></td>
+              <td>航空集团前十后十航班</td>
+              <td><code>ranked_flights.py</code></td>
+              <td>本地优先，必要时 structured refresh</td>
+            </tr>
+            <tr>
+              <td>单机边际贡献</td>
+              <td><code>single_margin</code></td>
+              <td>单机边际贡献</td>
+              <td><code>single_margin.py</code></td>
+              <td>本地优先，必要时 dedicated refresh</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card half">
+        <h2>六、技术委员会关注点</h2>
+        <ul>
+          <li>结构化合同已建立，OpenClaw 不再依赖 ad hoc Excel 检查。</li>
+          <li>schema 校验已外置到 <code>report_schemas.yaml</code>。</li>
+          <li>source loader 已具备 structured refresh 能力。</li>
+          <li>legacy 单体仍保留，但已退化为兼容兜底，而非唯一主路径。</li>
+          <li>自动化测试覆盖 40 项，包含 parser、planner、source、analysis、contract、离线集成与 e2e 契约。</li>
+        </ul>
+      </section>
+
+      <section class="card half">
+        <h2>七、业务委员会关注点</h2>
+        <ul>
+          <li>已能覆盖当前核心高频业务问题，不再依赖人工记忆报表位置。</li>
+          <li>对失败情况已有明确输出，例如航段不存在、日期不存在、报表结构不匹配、实时刷新失败。</li>
+          <li>新系统对“未来两天”“客座率和票价”“竞对分析”等此前脆弱问法已有稳定支持。</li>
+          <li>仍需继续积累真实 live-refresh 业务样本，以提升线上复杂场景稳定性。</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>八、测试与质量控制</h2>
+        <table>
+          <thead><tr><th>类别</th><th>覆盖内容</th></tr></thead>
+          <tbody>
+            <tr><td>Intent</td><td>时间语义、航班号、航段、竞对分析、多指标、机场别名</td></tr>
+            <tr><td>Planning</td><td>报表家族路由、route mismatch、schema gate、refresh policy</td></tr>
+            <tr><td>Analysis</td><td>future flight competition、airline yoy、ranked flights、single margin</td></tr>
+            <tr><td>Source</td><td>本地 source、structured refresh、preflight block</td></tr>
+            <tr><td>Contract</td><td>OpenClaw envelope、e2e reason code、next action</td></tr>
+            <tr><td>Integration</td><td>本地镜像离线查询回归</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:10px;">当前执行基线：<code>Ran 40 tests ... OK</code></p>
+      </section>
+
+      <section class="card">
+        <h2>九、剩余风险与后续建议</h2>
+        <div class="callout">
+          本轮重构已经完成，不代表后续完全没有技术债。现在的工作重点应从“重构完成”转向“legacy 收缩、live 样例扩充、warning 清理”。 
+        </div>
+        <ul>
+          <li>建议逐步删除 <code>query_opm_nl.py</code> 中已被新链路覆盖的 legacy 分支。</li>
+          <li>建议补更多真实 live-refresh 场景的端到端样例。</li>
+          <li>建议修复测试中的 <code>openpyxl</code> 资源 warning，便于后续 CI 稳定。</li>
+          <li>建议后续按报表家族继续扩展 schema 和 intent example 库。</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
