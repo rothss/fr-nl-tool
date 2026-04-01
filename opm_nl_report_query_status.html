@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OPM 自然语言报表查询 当前状态</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --paper: #fffdf8;
+      --ink: #1f2937;
+      --muted: #5b6472;
+      --line: #d7cfbe;
+      --accent: #9d4edd;
+      --accent-2: #0f766e;
+      --warn: #b45309;
+      --ok: #166534;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(157,78,221,.08), transparent 28%),
+        radial-gradient(circle at left 20%, rgba(15,118,110,.08), transparent 24%),
+        var(--bg);
+      line-height: 1.65;
+    }
+    .wrap {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    .hero {
+      background: linear-gradient(135deg, rgba(157,78,221,.10), rgba(15,118,110,.08)), var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px 28px 20px;
+      box-shadow: 0 18px 50px rgba(31,41,55,.06);
+    }
+    h1, h2, h3 { margin: 0 0 12px; line-height: 1.25; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 22px; margin-top: 28px; }
+    h3 { font-size: 17px; margin-top: 20px; }
+    p { margin: 0 0 10px; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 18px;
+    }
+    .k {
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .v {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 4px;
+      color: var(--ink);
+    }
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .section {
+      margin-top: 22px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 24px 26px;
+      box-shadow: 0 14px 40px rgba(31,41,55,.05);
+    }
+    ul, ol { margin: 10px 0 0 22px; padding: 0; }
+    li { margin: 8px 0; color: var(--ink); }
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      background: rgba(15, 23, 42, 0.06);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    th {
+      background: rgba(15, 23, 42, 0.04);
+      font-size: 13px;
+    }
+    tr:last-child td { border-bottom: none; }
+    .small { font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>OPM 自然语言报表查询 当前状态</h1>
+      <p>目标：面对新的业务指标或问法，能自动匹配 OPM / FineReport 报表，定位控件，修改参数，查询并返回具体数值或分析结论；对复杂 <code>.frm</code> 组合报表还能识别其内部 <code>.cpt</code> 组件并取数。</p>
+      <div style="margin-top:14px">
+        <span class="tag ok">已支持自然语言问答</span>
+        <span class="tag ok">已支持组件发现与批量入库</span>
+        <span class="tag ok">已支持复杂报表组件直连抓表</span>
+        <span class="tag ok">已修复前十后十航班日期控件误用默认值</span>
+        <span class="tag ok">已增加前十后十航班 top1 快速路径</span>
+        <span class="tag ok">已接入 1 小时过期强制刷新</span>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="k">当前主入口</div>
+          <div class="v">query_opm_nl.py</div>
+        </div>
+        <div class="card">
+          <div class="k">报表组件自动发现</div>
+          <div class="v">已打通</div>
+        </div>
+        <div class="card">
+          <div class="k">复杂报表实时取数</div>
+          <div class="v">已可用</div>
+        </div>
+        <div class="card">
+          <div class="k">当前时间基准</div>
+          <div class="v">2026-03-31</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>一、当前已完成功能</h2>
+      <ul>
+        <li>自然语言解析：支持时间、日期区间、月度、近三天、上周、航班号、航段、时刻、航司、机型、前十/后十、首航、同比、最好/最差、异常/改进等语义。</li>
+        <li>报表候选召回与排序：通过本地报表目录、SQLite 索引、别名映射、画像加权，找到最可能命中的报表。</li>
+        <li>本地 Excel 取数：对普通报表直接抽取结构化行列并做过滤、聚合、top1/topN 返回。</li>
+        <li>实时导出兜底：本地表不准、过期或空表时，自动走 OPM 实时导出。</li>
+        <li>复杂 <code>.frm</code> 组合报表支持：可从加载过程里发现内部 <code>.cpt</code> 组件，按指标关键词挑组件，再直连抓取该组件表格数据。</li>
+        <li>组件批量入库：支持“发现组件 -> 导出 Excel -> 增量写入 SQLite”，为后续高召回低时延做准备。</li>
+        <li>竞争态势分析：针对“票价/客座率与竞航相比有没有异常或改进空间”已能产出简要业务建议。</li>
+        <li>针对非标准参数面板的 DOM 级控件回填：已在 <code>航空集团前十后十航班</code> 这类报表落地，修复默认日期误导出的问题。</li>
+        <li>快速路径优化：对“航空集团上周小时边贡最高的航班”“航空集团上周总边贡最高的航班”这类固定命中问题，已直接进入目标报表实时导出和 top1 读取。</li>
+        <li>新鲜度策略：本地索引库或本地报表文件只要超过 1 小时未更新，即使本地能命中，也会强制走线上实时查询。</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>二、已验证通过的能力样例</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>测试问法</th>
+            <th>命中报表</th>
+            <th>当前结果</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>各航司3月单机边际贡献，同比起来谁最好</td>
+            <td>航空集团经营提升分析</td>
+            <td>天航，同比 1201.20%</td>
+          </tr>
+          <tr>
+            <td>这个月的各航司净利润的同比，谁表现得最差</td>
+            <td>航空集团经营提升分析</td>
+            <td>福州航空，排名 10/10，同比 18.26%</td>
+          </tr>
+          <tr>
+            <td>2月份的不含发动机大修和飞机退租的净利润，哪个航司提升最大</td>
+            <td>航空集团收入利润概览（调整后）</td>
+            <td>首都航空，净利润同比 658.26%</td>
+          </tr>
+          <tr>
+            <td>航空集团3月24到3月29日，后十的航班有几条是首航的，分别是哪几个</td>
+            <td>航空集团前十后十航班</td>
+            <td>3 条：桂林-海口、海口-长沙、杭州-海口</td>
+          </tr>
+          <tr>
+            <td>海口-北京首都的包干航线，近三天的票价和客座率与外航相比，有没有什么异常或者可以改进的吗</td>
+            <td>未来航班客座率票价分析</td>
+            <td>已能返回异常判断与改进建议</td>
+          </tr>
+          <tr>
+            <td>航空集团上周小时边贡最高的航班</td>
+            <td>航空集团前十后十航班</td>
+            <td>HU7081/7282，小时边际贡献 11.6 万元</td>
+          </tr>
+          <tr>
+            <td>航空集团上周总边贡最高的航班</td>
+            <td>航空集团前十后十航班</td>
+            <td>HU7975/76，总边贡 201.7 万元</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">说明：最后一条已验证根因修复有效，之前错误是因为报表实际导出了默认日期区间 <code>2026-03-24</code> 到 <code>2026-03-30</code>，现已改成按查询意图回填为 <code>2026-03-23</code> 到 <code>2026-03-29</code>。</p>
+    </section>
+
+    <section class="section">
+      <h2>三、当前架构</h2>
+      <h3>1. 查询主流程</h3>
+      <ol>
+        <li>用户输入自然语言问题。</li>
+        <li><code>parse_query_intent.py</code> 解析指标、时间、实体、筛选条件、比较口径、返回形态。</li>
+        <li><code>query_opm_nl.py</code> 从报表目录和 SQLite 索引中排序候选报表，并结合画像做 rerank。</li>
+        <li>优先读本地镜像 Excel；若缺失、过期、空表或过滤后无结果，则走实时导出。</li>
+        <li>若是复杂 <code>.frm</code> 报表，则优先尝试组件导出；必要时自动发现全部 <code>.cpt</code> 组件并按指标择优抓取。</li>
+        <li>抽取表格结构后做过滤、排序、极值、同比分析、竞航分析，最后输出答案。</li>
+      </ol>
+
+      <h3>2. 关键脚本</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>脚本</th>
+            <th>作用</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>scripts/query_opm_nl.py</code></td>
+            <td>总入口，负责召回、导出、取数、答案组织</td>
+          </tr>
+          <tr>
+            <td><code>scripts/parse_query_intent.py</code></td>
+            <td>自然语言解析</td>
+          </tr>
+          <tr>
+            <td><code>scripts/export_report_generic_live.mjs</code></td>
+            <td>通用 OPM 实时导出，现已支持部分 DOM 级参数回填</td>
+          </tr>
+          <tr>
+            <td><code>scripts/export_report_component_live.mjs</code></td>
+            <td>复杂 <code>.frm</code> 报表中指定组件的导出</td>
+          </tr>
+          <tr>
+            <td><code>scripts/fetch_component_table_live.mjs</code></td>
+            <td>组件 URL 直连抓表</td>
+          </tr>
+          <tr>
+            <td><code>scripts/discover_components_from_network.mjs</code></td>
+            <td>从网络请求中发现一个 <code>.frm</code> 加载出的全部组件</td>
+          </tr>
+          <tr>
+            <td><code>scripts/export_components_and_index.py</code></td>
+            <td>组件批量导出并入 SQLite 索引</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>3. 数据层</h3>
+      <ul>
+        <li>本地镜像目录：<code>C:\Users\ZhuanZ\opm_mirror</code></li>
+        <li>组件镜像目录：<code>C:\Users\ZhuanZ\opm_mirror\_components</code></li>
+        <li>SQLite 索引：<code>C:\Users\ZhuanZ\opm_mirror\search_index\excel_index.db</code></li>
+        <li>组件 URL 注册表：<code>references/component_url_registry.yaml</code></li>
+        <li>新鲜度阈值：当前统一按 <code>3600</code> 秒处理，超过 1 小时视为过期。</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>四、当前已明确的优化点</h2>
+      <ul>
+        <li>通用控件映射还不够，部分 FineReport 页面不是标准 widget，需要补 DOM 级控件识别和回填。</li>
+        <li>复杂 <code>.frm</code> 报表虽然能发现组件，但“组件关键词 -> 组件选择”的画像还可以更细，减少试错和等待。</li>
+        <li>部分问法仍依赖实时导出，主链路时延偏高，适合继续扩充离线组件索引。</li>
+        <li>目前对个别报表做了定制 fallback，后续应抽象成“参数面板结构识别器”，避免一张报表写一段逻辑。</li>
+        <li>少数全链路回归在 <code>query_opm_nl.py</code> 层仍有超时风险，需要继续清理不必要的重试和多轮刷新。</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>五、待优化项与 TODO</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>优先级</th>
+            <th>事项</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P0</td>
+            <td>把 DOM 参数面板处理泛化</td>
+            <td>从“按报表路径 hardcode”升级为“识别标签文本 + 控件顺序/类型”的通用机制</td>
+          </tr>
+          <tr>
+            <td>P0</td>
+            <td>稳定 <code>query_opm_nl.py</code> 的全链路超时</td>
+            <td>减少长重试链，拆分“匹配/导出/取数/格式化”耗时点并加日志</td>
+          </tr>
+          <tr>
+            <td>P1</td>
+            <td>继续扩充组件画像缓存</td>
+            <td>为复杂报表预存“指标词 -> 子组件 -> 参数模板 -> 表头画像”</td>
+          </tr>
+          <tr>
+            <td>P1</td>
+            <td>增量刷新策略更细化</td>
+            <td>让“无命中时自动刷新”支持按目录、按报表、按组件粒度触发</td>
+          </tr>
+          <tr>
+            <td>P1</td>
+            <td>增强分析类回答模板</td>
+            <td>把异常、改进建议、竞航差异、目标偏离等整理为更像业务汇报的话术</td>
+          </tr>
+          <tr>
+            <td>P2</td>
+            <td>增加更多自动回归测试集</td>
+            <td>沉淀你提供的真实业务问法，形成标准回归样本库</td>
+          </tr>
+          <tr>
+            <td>P2</td>
+            <td>增加运行观测页</td>
+            <td>记录每次问题的命中报表、控件填值、导出文件、耗时、失败点</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>六、结论</h2>
+      <p>当前方案已经具备“通用自然语言问报表”的主体能力，尤其是复杂报表组件发现、组件批量入库、组件直连抓表、自然语言过滤和业务分析这几块已经形成闭环。下一阶段重点不是再补单点特化，而是把控件识别、组件画像和超时治理继续抽象成更通用、更稳定的基础设施。</p>
+    </section>
+  </div>
+</body>
+</html>

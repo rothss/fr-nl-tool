@@ -1,0 +1,8 @@
+default_user: zhuanz
+users:
+  zhuanz:
+    包干航线:
+      航段:
+        - 博鳌-北京首都
+      航班号:
+        - HU7778
