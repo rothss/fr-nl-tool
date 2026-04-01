@@ -13,6 +13,7 @@ from pathlib import Path
 
 from analysis.future_flight_competition import render_future_competition_review
 from common import default_catalog_db, default_mirror_root, default_profile_db, find_report_cpt_path, is_stale_file, load_yaml_or_json, references_dir
+from data.extractor_registry import get_analysis_renderer
 from excel_index_candidates import default_excel_index_db, rank_candidates_from_excel_index
 from extract_adjusted_profit_overview import extract_adjusted_profit_overview_rows
 from extract_single_margin import extract_single_margin_rows
@@ -1540,7 +1541,8 @@ def run_query(
                 analysis_rows = rows
         elif live_refresh_error is None:
             live_refresh_error = analysis_msg
-        answer_text = render_future_competition_review(analysis_rows, str(top["report_name"]), source_path, filters)
+        analysis_renderer = get_analysis_renderer(str(top.get("report_name") or ""), analysis_mode=str(filters.get("analysis_mode") or ""))
+        answer_text = analysis_renderer(analysis_rows, str(top["report_name"]), source_path, filters) if analysis_renderer else render_future_competition_review(analysis_rows, str(top["report_name"]), source_path, filters)
         if live_refresh_error:
             answer_text = f"{answer_text}\n实时刷新失败: {live_refresh_error}"
         return {
