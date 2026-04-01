@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from render.failure_renderer import infer_next_action as infer_failure_next_action
+from render.failure_renderer import render_failure_message
+
 
 def infer_stage(payload: dict) -> str:
     if payload.get("ok"):
@@ -30,27 +33,13 @@ def infer_message(payload: dict) -> str | None:
         return None
     if payload.get("message"):
         return str(payload["message"])
-    reason = infer_reason_code(payload)
-    if reason == "no_report_match":
-        return "未找到匹配的报表。"
-    if reason == "intent_low_confidence":
-        return "意图解析置信度不足。"
-    if reason == "intent_missing_required_slots":
-        return "意图解析缺少关键槽位。"
-    if reason == "live_refresh_failed":
-        return "实时刷新失败。"
-    return "查询执行失败。"
+    return render_failure_message(infer_reason_code(payload), payload)
 
 
 def infer_next_action(payload: dict) -> str | None:
     if payload.get("ok"):
         return None
-    reason = infer_reason_code(payload)
-    if reason == "no_report_match":
-        return "refine_query"
-    if reason == "live_refresh_failed":
-        return "retry_or_check_login"
-    return None
+    return infer_failure_next_action(infer_reason_code(payload))
 
 
 def to_openclaw_result(payload: dict) -> dict:
@@ -68,4 +57,3 @@ def to_openclaw_result(payload: dict) -> dict:
         "next_action": infer_next_action(raw),
     }
     return result
-
