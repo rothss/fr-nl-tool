@@ -6,11 +6,15 @@ from pathlib import Path
 
 from adapters.openclaw_contract import to_openclaw_result
 from common import default_catalog_db, default_mirror_root, default_profile_db
+from data.catalog import find_report_candidates, load_catalog
+from data.extractor_registry import extract_rows_for_report, get_analysis_engine
 from data.schemas import probe_local_file_against_intent
 from data.source_loader import acquire_source, should_block_on_preflight
 from parse_query_intent import parse_query
 from planning.planner import build_query_plan as build_schema_aware_plan
+from planning.router import route_report_family
 from query_opm_nl import run_query as execute_query
+from render.answer_renderer import render_answer_text
 
 
 def build_plan(intent: dict, query_result: dict) -> dict:
@@ -86,6 +90,91 @@ def apply_plan_aware_postprocess(query_result: dict) -> dict:
     return query_result
 
 
+def resolve_top_candidate(intent: dict, db_path: Path) -> dict | None:
+    catalog = load_catalog(db_path)
+    routed = route_report_family(intent)
+    preferred_names = [str(item.get("report_name") or "").strip() for item in routed if str(item.get("report_name") or "").strip()]
+    seen_names: set[str] = set()
+    for report_name in preferred_names:
+        if report_name in seen_names:
+            continue
+        seen_names.add(report_name)
+        candidates = find_report_candidates(intent, catalog, preferred_report_name=report_name, top_n=3)
+        if candidates:
+            return candidates[0]
+    candidates = find_report_candidates(intent, catalog, top_n=3)
+    return candidates[0] if candidates else None
+
+
+def build_initial_plan(intent: dict, top_candidate: dict | None) -> tuple[dict, dict | None]:
+    local_probe = None
+    if top_candidate:
+        local_probe = probe_local_file_against_intent(
+            top_candidate.get("file_path"),
+            top_candidate.get("report_name"),
+            intent,
+        )
+    plan = build_schema_aware_plan(intent, local_probe=local_probe)
+    if top_candidate:
+        plan["report_name"] = top_candidate.get("report_name") or plan.get("report_name")
+        plan["report_path"] = top_candidate.get("file_path") or plan.get("report_path")
+        plan["candidate_score"] = top_candidate.get("score", plan.get("candidate_score"))
+    return plan, local_probe
+
+
+def try_local_pipeline(intent: dict, plan: dict, source_meta: dict) -> dict | None:
+    if not source_meta.get("ok"):
+        return None
+    if plan.get("require_live_refresh"):
+        if not source_meta.get("refreshed"):
+            return None
+    report_name = str(plan.get("report_name") or "")
+    analysis_mode = str(((intent.get("structured_intent") or {}).get("analysis") or {}).get("mode") or (intent.get("filters") or {}).get("analysis_mode") or "")
+    filters = intent.get("filters") or {}
+    if report_name == "航空集团前十后十航班" and bool(filters.get("first_flight")) and str(filters.get("rank_scope") or "") == "后十":
+        analysis_mode = "first_flight_bottom10"
+    elif report_name == "航空集团前十后十航班" and str(filters.get("extreme") or "") == "best" and str(intent.get("metric") or "") in {"小时边际贡献", "总边贡"}:
+        analysis_mode = "top_metric_flight"
+    analyzer = get_analysis_engine(report_name, analysis_mode=analysis_mode)
+    if analyzer is None:
+        return None
+    file_path = str(source_meta.get("file_path") or "").strip()
+    if not file_path:
+        return None
+    extracted = extract_rows_for_report(report_name, file_path)
+    if report_name == "航空集团前十后十航班" and analysis_mode == "top_metric_flight":
+        analysis_result = analyzer(intent, source_meta)
+    else:
+        analysis_result = analyzer(intent, extracted, source_meta)
+    payload = {
+        "ok": bool(analysis_result.get("ok")),
+        "intent": intent,
+        "plan": plan,
+        "source_meta": source_meta,
+        "analysis_result": analysis_result,
+        "extracted": extracted,
+    }
+    answer_text = render_answer_text(payload)
+    return {
+        "ok": bool(analysis_result.get("ok")),
+        "intent": intent,
+        "plan": plan,
+        "source_meta": source_meta,
+        "analysis_result": analysis_result,
+        "extracted": extracted,
+        "answer_text": answer_text,
+    }
+
+
+def wrap_legacy_result(intent: dict, query_result: dict) -> dict:
+    query_result["intent"] = query_result.get("intent") or intent
+    query_result["plan"] = build_plan(query_result["intent"], query_result)
+    query_result["source_meta"] = build_source_meta(query_result)
+    query_result = apply_plan_aware_postprocess(query_result)
+    query_result["analysis_result"] = build_analysis_result(query_result)
+    return to_openclaw_result(query_result)
+
+
 def run_query(
     query: str,
     user: str | None = None,
@@ -101,6 +190,47 @@ def run_query(
     profile = profile_db or default_profile_db()
 
     intent = parse_query(query)
+    top_candidate = resolve_top_candidate(intent, db)
+    if top_candidate is None:
+        return to_openclaw_result(
+            {
+                "ok": False,
+                "reason": "no_report_match",
+                "intent": intent,
+                "plan": build_schema_aware_plan(intent),
+                "source_meta": None,
+                "analysis_result": None,
+            }
+        )
+
+    plan, _local_probe = build_initial_plan(intent, top_candidate)
+    source_meta = acquire_source(
+        plan,
+        intent,
+        {
+            "ok": False,
+            "used_live_refresh": False,
+            "top_candidate": top_candidate,
+        },
+    )
+    blocked, reason, message = should_block_on_preflight(plan, source_meta)
+    if blocked and not source_meta.get("refreshed"):
+        return to_openclaw_result(
+            {
+                "ok": False,
+                "reason": reason,
+                "message": message,
+                "intent": intent,
+                "plan": plan,
+                "source_meta": source_meta,
+                "analysis_result": None,
+            }
+        )
+
+    local_payload = try_local_pipeline(intent, plan, source_meta)
+    if local_payload is not None:
+        return to_openclaw_result(local_payload)
+
     query_result = execute_query(
         query=query,
         user=user,
@@ -110,12 +240,7 @@ def run_query(
         excel_index_db=excel_index_db,
         profile_db=profile,
     )
-    query_result["intent"] = query_result.get("intent") or intent
-    query_result["plan"] = build_plan(query_result["intent"], query_result)
-    query_result["source_meta"] = build_source_meta(query_result)
-    query_result = apply_plan_aware_postprocess(query_result)
-    query_result["analysis_result"] = build_analysis_result(query_result)
-    return to_openclaw_result(query_result)
+    return wrap_legacy_result(intent, query_result)
 
 
 def main() -> None:

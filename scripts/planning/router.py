@@ -31,6 +31,53 @@ def route_report_family(intent: dict) -> list[dict]:
             }
         )
 
+    if str(filters.get("report_variant") or "") == "adjusted_profit_overview":
+        routed.append(
+            {
+                "report_family": "adjusted_profit_overview",
+                "report_name": "航空集团收入利润概览（调整后）",
+                "score": 0.96,
+                "reasons": ["adjusted_profit_variant", "airline_yoy"],
+            }
+        )
+    elif str(filters.get("compare_scope") or "") == "airline_yoy" and ("净利润同比" in metrics or "净利润" in str(intent.get("raw_query") or "")):
+        routed.append(
+            {
+                "report_family": "airline_yoy",
+                "report_name": "航空集团经营提升分析",
+                "score": 0.92,
+                "reasons": ["airline_yoy", "net_profit_yoy"],
+            }
+        )
+
+    if str(filters.get("rank_scope") or "") == "后十" and bool(filters.get("first_flight")):
+        routed.append(
+            {
+                "report_family": "ranked_flights",
+                "report_name": "航空集团前十后十航班",
+                "score": 0.94,
+                "reasons": ["bottom10", "first_flight"],
+            }
+        )
+    elif str(filters.get("extreme") or "") == "best" and any(m in metrics for m in ("小时边际贡献", "总边贡")):
+        routed.append(
+            {
+                "report_family": "ranked_flights",
+                "report_name": "航空集团前十后十航班",
+                "score": 0.93,
+                "reasons": ["top_metric_flight"],
+            }
+        )
+    elif "单机边际贡献" in metrics:
+        routed.append(
+            {
+                "report_family": "single_margin",
+                "report_name": "单机边际贡献",
+                "score": 0.90,
+                "reasons": ["single_margin"],
+            }
+        )
+
     if not routed and has_route:
         routed.append(
             {
@@ -41,4 +88,3 @@ def route_report_family(intent: dict) -> list[dict]:
             }
         )
     return routed
-

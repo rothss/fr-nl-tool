@@ -2,27 +2,27 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from common import load_yaml_or_json, references_dir
 from extract_structured_table import extract_table
 from intent.normalize import load_airport_aliases
 
+def _load_report_schema_registry() -> dict[str, dict]:
+    path = references_dir() / "report_schemas.yaml"
+    data = load_yaml_or_json(path)
+    items = data.get("schemas") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        return {}
+    out: dict[str, dict] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        report_name = str(item.get("report_name") or "").strip()
+        if report_name:
+            out[report_name] = item
+    return out
 
-REPORT_SCHEMAS: dict[str, dict] = {
-    "未来航班客座率票价分析": {
-        "report_name": "未来航班客座率票价分析",
-        "schema_name": "future_flight_competition_v1",
-        "required_identity_cols": ["航班号", "航班日期", "航段"],
-        "metric_groups": {
-            "客座率": ["现在客座率", "竞航客座率", "与竞航客座率差"],
-            "价格": ["价格", "竞航价格", "与竞航价格差"],
-        },
-        "support_analysis_modes": ["competition_review", "pricing_review"],
-        "noise_tokens": ["备注", "数据最后更新时间"],
-        "soft_warning_tokens": ["新开航线"],
-        "route_col": "航段",
-        "date_col": "航班日期",
-        "flight_col": "航班号",
-    }
-}
+
+REPORT_SCHEMAS: dict[str, dict] = _load_report_schema_registry()
 
 
 def get_report_schema(report_name: str | None) -> dict | None:
@@ -136,4 +136,3 @@ def probe_local_file_against_intent(file_path: str | Path | None, report_name: s
         "missing_identity_cols": schema_eval["missing_identity_cols"],
         "missing_metric_groups": schema_eval["missing_metric_groups"],
     }
-

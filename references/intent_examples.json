@@ -1,0 +1,19 @@
+[
+  {
+    "query": "海口到北京首都未来两天的客座率和票价，和竞争对手比有什么问题",
+    "expected_intent_type": "route_competition_diagnosis",
+    "expected_metrics": ["客座率", "价格"]
+  },
+  {
+    "query": "这个月的各航司净利润的同比，谁表现得最差",
+    "expected_report_family": "airline_yoy"
+  },
+  {
+    "query": "航空集团3月24到3月29日，后十的航班有几条是首航的，分别是哪几个",
+    "expected_report_family": "ranked_flights"
+  },
+  {
+    "query": "HU7778明天的余票",
+    "expected_report_family": "route_metric_lookup"
+  }
+]

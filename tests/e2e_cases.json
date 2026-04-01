@@ -1,0 +1,34 @@
+[
+  {
+    "name": "structured_route_failure_case",
+    "payload": {
+      "ok": false,
+      "reason": "route_not_found_in_report",
+      "intent": {
+        "metric": "客座率",
+        "filters": {
+          "segment_from": "海口",
+          "segment_to": "北京首都"
+        }
+      },
+      "plan": {
+        "report_family": "future_flight_competition",
+        "report_name": "未来航班客座率票价分析"
+      },
+      "source_meta": {
+        "ok": false,
+        "source_type": "local_file",
+        "route_match_ok": false,
+        "date_match_ok": true,
+        "schema_ok": true,
+        "refreshed": false
+      }
+    },
+    "expected": {
+      "ok": false,
+      "stage": "execution",
+      "reason_code": "route_not_found_in_report",
+      "next_action": "trigger_live_refresh"
+    }
+  }
+]

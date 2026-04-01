@@ -11,7 +11,14 @@ import time
 import shutil
 from pathlib import Path
 
+from analysis.airline_yoy import pick_best_airline_yoy as pick_best_airline_yoy_v2
 from analysis.future_flight_competition import render_future_competition_review
+from analysis.ranked_flights import (
+    analyze_first_flight_bottom10,
+    analyze_top_metric_flight,
+    render_first_flight_bottom10_answer as render_first_flight_bottom10_answer_v2,
+    render_top_metric_flight_answer as render_top_metric_flight_answer_v2,
+)
 from common import default_catalog_db, default_mirror_root, default_profile_db, find_report_cpt_path, is_stale_file, load_yaml_or_json, references_dir
 from data.extractor_registry import get_analysis_renderer
 from excel_index_candidates import default_excel_index_db, rank_candidates_from_excel_index
@@ -699,115 +706,29 @@ def _extract_route_pairs(route_text: str) -> list[str]:
 
 
 def render_first_flight_bottom10_answer(rows: list[dict], report_name: str, source_path: str) -> tuple[str, list[str]]:
-    # Priority path for "前十后十航班" export shape: right-side "_2" block carries 后十候选。
-    # In current export, 首航候选稳定落在首都航空(JD)行，路由值在机型_2。
-    jd_hits: list[str] = []
-    seen_jd = set()
-    for r in rows:
-        comp2 = str(r.get("公司_2", "")).strip()
-        flt2 = str(r.get("往返航班号_2", "")).strip().upper()
-        route_raw = str(r.get("机型_2", "")).strip() or str(r.get("航段班次↑↓_2", "")).strip()
-        if not route_raw:
-            continue
-        if ("首都航空" in comp2) or ("首都航空" in flt2) or flt2.startswith("JD"):
-            pairs = _extract_route_pairs(route_raw)
-            if not pairs:
-                continue
-            rp = pairs[0]
-            if rp not in seen_jd:
-                seen_jd.add(rp)
-                jd_hits.append(rp)
-    if jd_hits:
-        text = (
-            f"命中报表: {report_name}\n"
-            f"来源: {source_path}\n"
-            f"后十首航航班共 {len(jd_hits)} 条\n"
-            f"分别是: {'、'.join(jd_hits)}"
-        )
-        return text, jd_hits
-
-    route_cols: list[str] = []
-    if rows:
-        for k in rows[0].keys():
-            ks = str(k or "")
-            if ("航段班次" in ks) or ("航线" in ks):
-                route_cols.append(ks)
-    hits: list[str] = []
-    seen = set()
-    for r in rows:
-        for c in route_cols:
-            for rp in _extract_route_pairs(r.get(c, "")):
-                if rp not in seen:
-                    seen.add(rp)
-                    hits.append(rp)
-    text = (
-        f"命中报表: {report_name}\n"
-        f"来源: {source_path}\n"
-        f"后十首航航班共 {len(hits)} 条\n"
-        f"分别是: {'、'.join(hits) if hits else '-'}"
+    analysis_result = analyze_first_flight_bottom10(
+        {},
+        {"rows": rows},
+        {"file_path": source_path, "report_name": report_name},
     )
-    return text, hits
+    text = render_first_flight_bottom10_answer_v2(
+        analysis_result,
+        {"file_path": source_path, "report_name": report_name},
+    )
+    return text, list(analysis_result.get("first_flight_routes") or [])
 
 
 def render_top_metric_flight_answer(source_path: str, report_name: str, metric_hint: str) -> tuple[str, dict | None]:
-    try:
-        from openpyxl import load_workbook
-    except Exception:
-        return f"无法加载 Excel 解析 top1 航班。\n报表: {report_name}\n来源: {source_path}", None
-
-    metric_text = str(metric_hint or "").strip()
-    if metric_text not in {"小时边际贡献", "总边贡"}:
-        return "", None
-    metric_col = "小时边际贡献(万元)↑↓" if metric_text == "小时边际贡献" else "总边贡(万元)↑↓"
-    try:
-        wb = load_workbook(source_path, data_only=True)
-        ws = wb[wb.sheetnames[0]]
-    except Exception:
-        return f"无法读取报表文件。\n报表: {report_name}\n来源: {source_path}", None
-
-    header_map: dict[str, int] = {}
-    for c in range(1, ws.max_column + 1):
-        v = ws.cell(2, c).value
-        if v is None:
-            continue
-        header_map[str(v).strip()] = c
-    flight_col = header_map.get("往返航班号")
-    route_col = header_map.get("往返航线")
-    company_col = header_map.get("公司")
-    target_col = header_map.get(metric_col)
-    if not flight_col or not target_col:
-        return f"未在报表中识别到 {metric_text} 列。\n报表: {report_name}\n来源: {source_path}", None
-
-    best: dict | None = None
-    for r in range(3, ws.max_row + 1):
-        flight_no = str(ws.cell(r, flight_col).value or "").strip()
-        if not flight_no:
-            continue
-        value = _to_float(ws.cell(r, target_col).value)
-        if value is None:
-            continue
-        item = {
-            "rank": int(_to_float(ws.cell(r, 2).value) or 0),
-            "company": str(ws.cell(r, company_col).value or "").strip() if company_col else "",
-            "flight_no": flight_no,
-            "route": str(ws.cell(r, route_col).value or "").strip() if route_col else "",
-            "value": value,
-        }
-        if best is None or item["value"] > best["value"]:
-            best = item
-    if not best:
-        return f"未在报表中识别到有效航班数据。\n报表: {report_name}\n来源: {source_path}", None
-
-    metric_label = "小时边际贡献" if metric_text == "小时边际贡献" else "总边贡"
-    text = (
-        f"命中报表: {report_name}\n"
-        f"来源: {source_path}\n"
-        f"{metric_label}最高的航班: {best['flight_no']}\n"
-        f"航线: {best['route'] or '-'}\n"
-        f"公司: {best['company'] or '-'}\n"
-        f"{metric_label}: {best['value']:.1f} 万元"
+    analysis_result = analyze_top_metric_flight(
+        {"metric": metric_hint},
+        {"file_path": source_path, "report_name": report_name},
     )
-    return text, best
+    text = render_top_metric_flight_answer_v2(
+        analysis_result,
+        {"metric": metric_hint},
+        {"file_path": source_path, "report_name": report_name},
+    )
+    return text, (analysis_result.get("best_item") if analysis_result.get("ok") else None)
 
 
 def is_fast_top_metric_flight_query(intent: dict) -> bool:
@@ -936,64 +857,7 @@ def _to_float(v: object) -> float | None:
 
 
 def pick_best_airline_yoy(rows: list[dict], metric_hint: str, extreme: str) -> dict | None:
-    if not rows:
-        return None
-    keys = [str(k) for k in rows[0].keys()]
-    airline_col = None
-    for c in keys:
-        cs = str(c)
-        if any(x in cs for x in ("航司", "公司名称", "公司")):
-            airline_col = cs
-            break
-    if not airline_col:
-        return None
-    yoy_cols = [c for c in keys if "同比" in str(c)]
-    if metric_hint:
-        hit = [c for c in yoy_cols if metric_hint in str(c)]
-        if hit:
-            yoy_cols = hit
-    if not yoy_cols:
-        # fallback: pick percent-like column
-        for c in keys:
-            vals = [str(r.get(c, "")).strip() for r in rows[:20]]
-            if sum(1 for v in vals if "%" in v) >= 3:
-                yoy_cols = [c]
-                break
-    if not yoy_cols:
-        return None
-    yoy_col = yoy_cols[0]
-    rank_col = None
-    for c in keys:
-        if "排名" in str(c):
-            rank_col = str(c)
-            break
-    candidates: list[dict] = []
-    for r in rows:
-        airline = str(r.get(airline_col, "")).strip()
-        if (not airline) or any(x in airline for x in ("小计", "合计", "海航航空合计")):
-            continue
-        yoy = _to_float(r.get(yoy_col, ""))
-        if yoy is None:
-            continue
-        rank_v = None
-        if rank_col:
-            m_rank = re.search(r"\d+", str(r.get(rank_col, "")).strip())
-            if m_rank:
-                try:
-                    rank_v = int(m_rank.group(0))
-                except Exception:
-                    rank_v = None
-        candidates.append({"airline": airline, "yoy": yoy, "row": r, "rank_v": rank_v})
-    if not candidates:
-        return None
-    reverse = True if extreme != "worst" else False
-    sorted_rows = sorted(candidates, key=lambda x: float(x["yoy"]), reverse=reverse)
-    best = sorted_rows[0]
-    if isinstance(best.get("rank_v"), int):
-        rank = int(best["rank_v"])
-    else:
-        rank = (sorted_rows.index(best) + 1) if extreme != "worst" else len(sorted_rows)
-    return {"airline": best["airline"], "yoy": best["yoy"], "rank": rank, "total": len(sorted_rows), "yoy_col": yoy_col}
+    return pick_best_airline_yoy_v2(rows, metric_hint=metric_hint, extreme=extreme)
 
 
 def choose_candidate_by_local_fit(ranked: list[dict], intent: dict, user_scope_cfg: dict, user: str | None, probe_n: int = 8) -> dict:

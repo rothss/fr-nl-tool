@@ -1,0 +1,27 @@
+schemas:
+  - report_name: "未来航班客座率票价分析"
+    schema_name: "future_flight_competition_v1"
+    required_identity_cols:
+      - "航班号"
+      - "航班日期"
+      - "航段"
+    metric_groups:
+      客座率:
+        - "现在客座率"
+        - "竞航客座率"
+        - "与竞航客座率差"
+      价格:
+        - "价格"
+        - "竞航价格"
+        - "与竞航价格差"
+    support_analysis_modes:
+      - "competition_review"
+      - "pricing_review"
+    noise_tokens:
+      - "备注"
+      - "数据最后更新时间"
+    soft_warning_tokens:
+      - "新开航线"
+    route_col: "航段"
+    date_col: "航班日期"
+    flight_col: "航班号"

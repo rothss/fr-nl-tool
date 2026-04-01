@@ -18,6 +18,12 @@ def build_query_plan(intent: dict, local_probe: dict | None = None) -> dict:
     analysis_engine = None
     if top.get("report_family") == "future_flight_competition":
         analysis_engine = "future_flight_competition"
+    elif top.get("report_family") in {"airline_yoy", "adjusted_profit_overview"}:
+        analysis_engine = "airline_yoy"
+    elif top.get("report_family") == "ranked_flights":
+        analysis_engine = "ranked_flights"
+    elif top.get("report_family") == "single_margin":
+        analysis_engine = "single_margin"
 
     fallback_plans: list[dict] = []
     if "route_mismatch" in refresh_policy["reason_codes"]:
@@ -37,4 +43,3 @@ def build_query_plan(intent: dict, local_probe: dict | None = None) -> dict:
         "candidate_score": top.get("score"),
         "refresh_policy": refresh_policy,
     }
-
