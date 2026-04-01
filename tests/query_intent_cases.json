@@ -66,6 +66,7 @@
     "query": "海口-北京首都的包干航线，近三天的票价和客座率与外航相比，有没有什么异常或者可以改进的吗",
     "expected": {
       "metric": "客座率",
+      "metrics": "__non_empty__",
       "owner_scope": "all",
       "filters": {
         "segment_from": "海口",
@@ -74,6 +75,77 @@
         "date_start": "__non_empty__",
         "date_end": "__non_empty__",
         "flight_date": "__non_empty__"
+      }
+    }
+  },
+  {
+    "name": "competition_review_future_two_days_variant",
+    "query": "海口到北京首都未来两天的客座率和票价，和竞争对手比有什么问题",
+    "expected": {
+      "metric": "客座率",
+      "metrics": "__non_empty__",
+      "owner_scope": "all",
+      "filters": {
+        "segment_from": "海口",
+        "segment_to": "北京首都",
+        "analysis_mode": "competition_review",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      },
+      "structured_intent": {
+        "time": {
+          "mode": "relative_future_range"
+        },
+        "analysis": {
+          "mode": "competition_review"
+        }
+      }
+    }
+  },
+  {
+    "name": "competition_review_future_three_days_variant",
+    "query": "海口到北京首都未来3天的票价和客座率跟竞对相比怎么样",
+    "expected": {
+      "metric": "客座率",
+      "metrics": "__non_empty__",
+      "owner_scope": "all",
+      "filters": {
+        "segment_from": "海口",
+        "segment_to": "北京首都",
+        "analysis_mode": "competition_review",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      },
+      "structured_intent": {
+        "time": {
+          "mode": "relative_future_range"
+        },
+        "analysis": {
+          "mode": "competition_review"
+        }
+      }
+    }
+  },
+  {
+    "name": "airport_alias_variant",
+    "query": "美兰到首都未来两天的客座率和票价，和竞争对手比有什么问题",
+    "expected": {
+      "filters": {
+        "segment_from": "海口",
+        "segment_to": "北京首都",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      },
+      "structured_intent": {
+        "route": {
+          "origin_norm": "海口",
+          "destination_norm": "北京首都",
+          "origin_code": "HAK",
+          "destination_code": "PEK"
+        }
       }
     }
   },

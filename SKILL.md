@@ -18,19 +18,41 @@ python C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\scripts\build_report_ca
 Query by natural language:
 
 ```powershell
-python C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\scripts\query_opm_nl.py "我的包干航线的客座率是多少" --user zhuanz
+python C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\scripts\runner.py "我的包干航线的客座率是多少" --user zhuanz --output-format json
 ```
+
+For OpenClaw integration, always call the skill through `scripts\runner.py`, not `query_opm_nl.py` directly.
+`runner.py` is the stable skill contract and returns the structured envelope OpenClaw should consume.
 
 ## Workflow
 
 1. Parse natural-language query into intent.
-2. Rank report candidates from local catalog.
-3. Locate report template path (`.cpt/.frm`) from `manifest.json`.
-4. Run generic live export (`export_report_generic_live.mjs`) with widget auto-mapping.
-5. Extract structured rows from exported/local Excel.
-6. Resolve metric column by alias + fuzzy column match.
-7. Apply owner/date/entity filters.
-8. Return scalar or table answer with data source path and refresh status.
+2. Build a schema-aware query plan.
+3. Rank report candidates from local catalog.
+4. Locate report template path (`.cpt/.frm`) from `manifest.json`.
+5. Run generic live export (`export_report_generic_live.mjs`) with widget auto-mapping when required.
+6. Extract structured rows from exported/local Excel.
+7. Resolve metric column by alias + fuzzy column match.
+8. Apply owner/date/entity filters.
+9. Return a structured OpenClaw envelope plus final answer text.
+
+## OpenClaw Invocation Rules
+
+1. OpenClaw should treat this skill as a single tool and call only `scripts\runner.py`.
+2. OpenClaw should consume the returned JSON envelope instead of inspecting Excel files directly.
+3. If the skill returns a structured failure, OpenClaw should not run ad hoc `read_excel(...).head()` or file-dump commands.
+4. If a local intent LLM is configured, it may only fill missing slots. It must not choose report files or override execution policy.
+
+## Optional Local Intent LLM
+
+If you want a local small model to help with slot filling, set:
+
+```powershell
+$env:OPM_NL_INTENT_LLM_COMMAND = "your-local-intent-parser-command"
+```
+
+The command must read JSON from stdin and print JSON to stdout.
+It is used only to fill missing intent slots and is optional; the skill works without it.
 
 ## Live Fallback
 

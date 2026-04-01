@@ -7,6 +7,10 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from common import load_yaml_or_json, references_dir
+from intent.parser_llm import maybe_parse_with_local_llm
+from intent.normalize import load_airport_aliases, normalize_query
+from intent.parser_rules import parse_intent_rules
+from intent.validator import validate_and_repair_intent
 
 
 def _contains_any(text: str, items: list[str]) -> bool:
@@ -29,12 +33,44 @@ def load_synonyms(path: Path | None = None) -> dict:
     return load_yaml_or_json(actual)
 
 
+def parse_structured_query(text: str, synonyms: dict | None = None, today: date | None = None) -> dict:
+    _ = synonyms or load_synonyms()
+    normalized = normalize_query(text, alias_dict=load_airport_aliases())
+    rule_candidate = parse_intent_rules(normalized, today=today or date.today())
+    llm_candidate = None
+    route = rule_candidate.get("route") or {}
+    analysis = rule_candidate.get("analysis") or {}
+    need_llm_fill = bool(
+        rule_candidate.get("missing_slots")
+        or not route.get("origin_norm")
+        or not route.get("destination_norm")
+        or len(rule_candidate.get("metrics") or []) <= 1
+        or not analysis.get("mode")
+    )
+    if need_llm_fill:
+        llm_candidate = maybe_parse_with_local_llm(
+            normalized.get("cleaned_query") or str(text or ""),
+            hints={
+                "rule_candidate": rule_candidate,
+                "goal": "fill_missing_intent_slots_only",
+            },
+        )
+    structured = validate_and_repair_intent(
+        rule_candidate,
+        llm_candidate=llm_candidate,
+        today=today or date.today(),
+        alias_dict=normalized.get("alias_dict"),
+    )
+    return structured
+
+
 def parse_query(text: str, synonyms: dict | None = None) -> dict:
+    structured = parse_structured_query(text, synonyms=synonyms, today=date.today())
     syn = synonyms or load_synonyms()
     metric_map: dict[str, list[str]] = syn.get("metric_keywords", {})
     scope_terms_cfg: list[str] = syn.get("scope_keywords", [])
 
-    normalized = text.strip()
+    normalized = str(structured.get("raw_query") or text or "").strip()
     metric = None
     for canonical, keys in metric_map.items():
         if _contains_any(normalized, [canonical] + list(keys)):
@@ -55,11 +91,12 @@ def parse_query(text: str, synonyms: dict | None = None) -> dict:
                 guess = re.sub(r"是$", "", guess)
                 metric = guess.strip()
 
-    owner_scope = "mine" if ("我的" in normalized or "我负责" in normalized) else "all"
+    owner_scope = str((structured.get("scope") or {}).get("owner_scope") or ("mine" if ("我的" in normalized or "我负责" in normalized) else "all"))
 
     scope_terms: list[str] = []
+    scope_terms.extend(list((structured.get("scope") or {}).get("scope_terms") or []))
     for term in scope_terms_cfg:
-        if term in normalized:
+        if term in normalized and term not in scope_terms:
             scope_terms.append(term)
 
     # Chinese text often touches flight numbers directly, so \b is unreliable here.
@@ -104,6 +141,22 @@ def parse_query(text: str, synonyms: dict | None = None) -> dict:
         filters["date_start"] = today.isoformat()
         filters["date_end"] = (today + timedelta(days=2)).isoformat()
         filters["flight_date"] = [today.isoformat(), (today + timedelta(days=1)).isoformat(), (today + timedelta(days=2)).isoformat()]
+    time_info = structured.get("time") or {}
+    if time_info.get("mode") == "relative_future_range":
+        dates = [str(x) for x in (time_info.get("dates") or []) if x]
+        if dates:
+            filters["date_start"] = str(time_info.get("start_date") or dates[0])
+            filters["date_end"] = str(time_info.get("end_date") or dates[-1])
+            filters["flight_date"] = dates
+    elif time_info.get("mode") in {"single_date", "explicit_range"}:
+        dates = [str(x) for x in (time_info.get("dates") or []) if x]
+        if dates:
+            if len(dates) == 1:
+                filters["flight_date"] = dates
+            else:
+                filters["date_start"] = str(time_info.get("start_date") or dates[0])
+                filters["date_end"] = str(time_info.get("end_date") or dates[-1])
+                filters["flight_date"] = dates
     if ("date_start" not in filters) and ("date_end" not in filters):
         m_only = re.search(r"(?<!\d)(\d{1,2})月(?!\d)", normalized)
         if m_only:
@@ -148,20 +201,25 @@ def parse_query(text: str, synonyms: dict | None = None) -> dict:
         if 0 <= hh <= 23 and 0 <= mm <= 59:
             filters["depart_time"] = f"{hh:02d}:{mm:02d}"
 
-    route_match = re.search(
-        r"(?:我的)?([\u4e00-\u9fff]{2,8})到([\u4e00-\u9fff]{2,8}?)(?:的|航段|航线|$)",
-        normalized,
-    )
-    if route_match:
-        filters["segment_from"] = _clean_city_phrase(route_match.group(1))
-        filters["segment_to"] = _clean_city_phrase(route_match.group(2))
+    route = structured.get("route") or {}
+    if route.get("origin_norm") and route.get("destination_norm"):
+        filters["segment_from"] = str(route.get("origin_norm"))
+        filters["segment_to"] = str(route.get("destination_norm"))
     else:
-        route_hyphen = re.search(r"([\u4e00-\u9fff]{2,8})[-—–]([\u4e00-\u9fff（）()]{2,12})", normalized)
-        if route_hyphen:
-            filters["segment_from"] = _clean_city_phrase(route_hyphen.group(1))
-            filters["segment_to"] = _clean_city_phrase(
-                route_hyphen.group(2).strip().replace("（", "").replace("）", "")
-            )
+        route_match = re.search(
+            r"(?:我的)?([\u4e00-\u9fff]{2,8})到([\u4e00-\u9fff]{2,8}?)(?:的|航段|航线|$)",
+            normalized,
+        )
+        if route_match:
+            filters["segment_from"] = _clean_city_phrase(route_match.group(1))
+            filters["segment_to"] = _clean_city_phrase(route_match.group(2))
+        else:
+            route_hyphen = re.search(r"([\u4e00-\u9fff]{2,8})[-—–]([\u4e00-\u9fff（）()]{2,12})", normalized)
+            if route_hyphen:
+                filters["segment_from"] = _clean_city_phrase(route_hyphen.group(1))
+                filters["segment_to"] = _clean_city_phrase(
+                    route_hyphen.group(2).strip().replace("（", "").replace("）", "")
+                )
 
     if "最后一班" in normalized or "最晚一班" in normalized:
         filters["last_flight"] = True
@@ -192,7 +250,9 @@ def parse_query(text: str, synonyms: dict | None = None) -> dict:
         filters["extreme"] = "best"
     if ("航司" in normalized and "同比" in normalized) or ("各航司" in normalized and "同比" in normalized):
         filters["compare_scope"] = "airline_yoy"
-    if ("异常" in normalized) or ("改进" in normalized) or ("外航相比" in normalized) or ("竞航" in normalized):
+    if ("异常" in normalized) or ("改进" in normalized) or ("外航相比" in normalized) or ("竞航" in normalized) or ("竞争对手" in normalized) or ("竞对" in normalized):
+        filters["analysis_mode"] = "competition_review"
+    if str((structured.get("analysis") or {}).get("mode") or "") == "competition_review":
         filters["analysis_mode"] = "competition_review"
 
     aircraft_types = ("宽体机", "窄体机", "支线机")
@@ -219,14 +279,21 @@ def parse_query(text: str, synonyms: dict | None = None) -> dict:
             filters["company"] = c
             break
 
+    if not metric:
+        structured_metrics = [str(x) for x in (structured.get("metrics") or []) if str(x).strip()]
+        if structured_metrics:
+            metric = structured_metrics[0]
+
     return {
         "raw_query": normalized,
         "metric": metric,
+        "metrics": list((structured.get("metrics") or ([] if metric is None else [metric]))),
         "scope_terms": scope_terms,
         "owner_scope": owner_scope,
         "time_range": None,
         "filters": filters,
         "expected_shape": "scalar_or_list",
+        "structured_intent": structured,
     }
 
 
