@@ -7,6 +7,7 @@ from pathlib import Path
 from adapters.openclaw_contract import to_openclaw_result
 from common import default_catalog_db, default_mirror_root, default_profile_db
 from data.schemas import probe_local_file_against_intent
+from data.source_loader import acquire_source, should_block_on_preflight
 from parse_query_intent import parse_query
 from planning.planner import build_query_plan as build_schema_aware_plan
 from query_opm_nl import run_query as execute_query
@@ -31,30 +32,10 @@ def build_plan(intent: dict, query_result: dict) -> dict:
 
 def build_source_meta(query_result: dict) -> dict | None:
     top = query_result.get("top_candidate") or {}
-    if not top and not query_result.get("live_refresh_error"):
+    plan = query_result.get("plan") or {}
+    if not top and not query_result.get("live_refresh_error") and not plan.get("report_path"):
         return None
-    probe = probe_local_file_against_intent(
-        top.get("file_path"),
-        top.get("report_name"),
-        query_result.get("intent") or {},
-    ) if top else {
-        "schema_ok": False,
-        "route_match_ok": False,
-        "date_match_ok": False,
-        "warnings": [],
-    }
-    return {
-        "ok": bool(query_result.get("ok")),
-        "source_type": "query_pipeline",
-        "file_path": top.get("file_path"),
-        "refreshed": bool(query_result.get("used_live_refresh")),
-        "refresh_message": None if not query_result.get("live_refresh_error") else str(query_result.get("live_refresh_error")),
-        "last_modified": None,
-        "schema_ok": bool(probe.get("schema_ok", True)),
-        "route_match_ok": bool(probe.get("route_match_ok", True)),
-        "date_match_ok": bool(probe.get("date_match_ok", True)),
-        "warnings": list(probe.get("warnings") or []) + ([str(query_result.get("live_refresh_error"))] if query_result.get("live_refresh_error") else []),
-    }
+    return acquire_source(plan, query_result.get("intent") or {}, query_result)
 
 
 def build_analysis_result(query_result: dict) -> dict | None:
@@ -96,19 +77,10 @@ def apply_plan_aware_postprocess(query_result: dict) -> dict:
         query_result["message"] = f"实时刷新失败: {query_result.get('live_refresh_error')}"
         return query_result
 
-    if plan.get("report_family") and not source_meta.get("schema_ok", True):
-        query_result["reason"] = "report_schema_invalid"
-        query_result["message"] = "报表结构不满足当前查询要求。"
-        return query_result
-
-    if plan.get("report_family") and not source_meta.get("route_match_ok", True) and not query_result.get("used_live_refresh"):
-        query_result["reason"] = "route_not_found_in_report"
-        query_result["message"] = "未在当前报表中找到请求航段。"
-        return query_result
-
-    if plan.get("report_family") and not source_meta.get("date_match_ok", True) and not query_result.get("used_live_refresh"):
-        query_result["reason"] = "date_not_found_in_report"
-        query_result["message"] = "未在当前报表中找到请求日期。"
+    blocked, reason, message = should_block_on_preflight(plan, source_meta)
+    if blocked:
+        query_result["reason"] = reason
+        query_result["message"] = message
         return query_result
 
     return query_result
