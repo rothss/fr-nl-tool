@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPM NL Report Query - 项目介绍</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .header p {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 40px;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    .section h2 {
+      color: #2c3e50;
+      font-size: 1.5em;
+      margin-bottom: 15px;
+      border-left: 4px solid #3498db;
+      padding-left: 15px;
+    }
+    .section h3 {
+      color: #34495e;
+      font-size: 1.2em;
+      margin: 20px 0 10px 0;
+    }
+    .section p {
+      margin-bottom: 10px;
+      text-align: justify;
+    }
+    .code-block {
+      background: #f4f6f7;
+      border: 1px solid #dfe4ea;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+    .code-block pre {
+      margin: 0;
+      font-family: "Consolas", "Monaco", monospace;
+      font-size: 0.9em;
+      color: #2c3e50;
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+    }
+    .feature-list li {
+      padding: 8px 0 8px 30px;
+      position: relative;
+    }
+    .feature-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #27ae60;
+      font-weight: bold;
+    }
+    .workflow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .workflow-step {
+      flex: 1;
+      min-width: 120px;
+      background: #ecf0f1;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 0.9em;
+    }
+    .workflow-step strong {
+      display: block;
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
+    .highlight-box {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .highlight-box strong {
+      color: #856404;
+    }
+    .tech-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .tech-tag {
+      background: #e8f4fd;
+      color: #2980b9;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      font-weight: 500;
+    }
+    .footer {
+      background: #ecf0f1;
+      padding: 20px 40px;
+      text-align: center;
+      color: #7f8c8d;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>OPM NL Report Query</h1>
+      <p>用自然语言查询 OPM 报表数据的智能技能</p>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <h2>项目简介</h2>
+        <p>
+          OPM NL Report Query 是一个智能技能，用于桥接业务语言问题与 OPM 报表数据检索。它通过解析自然语言意图、
+          排序匹配的报表、从本地 OPM 镜像 Excel 文件中提取结构化数据行，并可选地回退到实时导出，来回答关于 OPM KPI 的自然语言问题。
+        </p>
+        <p>
+          当用户提出如"我的包干航线的客座率是多少"、"HU7778 明天的余票"或"未来航班竞航价格差"等问题时，
+          此技能能够理解问题意图并返回结构化的答案。
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>核心功能</h2>
+        <ul class="feature-list">
+          <li>自然语言意图解析，支持规则解析和 LLM 辅助</li>
+          <li>智能报表路由和数据源选择</li>
+          <li>本地 Excel 文件与实时导出的混合策略</li>
+          <li>结构化的中间输出和最终答案</li>
+          <li>多指标提取（如同时查询客座率和票价）</li>
+          <li>时间语义解析（支持"未来两天"、"近三天"等表达）</li>
+          <li>航线/机场别名规范化</li>
+          <li>竞争对手分析诊断</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>技术栈</h2>
+        <div class="tech-stack">
+          <span class="tech-tag">Python</span>
+          <span class="tech-tag">PowerShell</span>
+          <span class="tech-tag">Node.js</span>
+          <span class="tech-tag">YAML 配置</span>
+          <span class="tech-tag">JSON Schema</span>
+          <span class="tech-tag">OpenAI SDK</span>
+          <span class="tech-tag">Excel 处理</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>工作流程</h2>
+        <div class="workflow">
+          <div class="workflow-step"><strong>1</strong>输入规范化</div>
+          <div class="workflow-step"><strong>2</strong>意图解析</div>
+          <div class="workflow-step"><strong>3</strong>查询规划</div>
+          <div class="workflow-step"><strong>4</strong>数据获取</div>
+          <div class="workflow-step"><strong>5</strong>结构化提取</div>
+          <div class="workflow-step"><strong>6</strong>分析引擎</div>
+          <div class="workflow-step"><strong>7</strong>答案渲染</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>快速开始</h2>
+        <h3>构建报表目录</h3>
+        <div class="code-block">
+          <pre>python scripts/build_report_catalog.py</pre>
+        </div>
+        <h3>自然语言查询</h3>
+        <div class="code-block">
+          <pre>python scripts/runner.py "我的包干航线的客座率是多少" --user zhuanz --output-format json</pre>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>项目结构</h2>
+        <div class="code-block">
+          <pre>scripts/
+  ├── runner.py                 # 主入口点
+  ├── intent/                   # 意图解析模块
+  │   ├── schema.py            # 意图 Schema 定义
+  │   ├── normalize.py         # 查询规范化
+  │   ├── parser_rules.py      # 规则解析器
+  │   ├── parser_llm.py        # LLM 解析器
+  │   └── validator.py         # 意图验证
+  ├── planning/                # 查询规划模块
+  │   ├── planner.py          # 查询规划器
+  │   ├── router.py           # 报表路由
+  │   └── refresh_policy.py   # 刷新策略
+  ├── analysis/                # 分析引擎
+  │   ├── future_flight_competition.py
+  │   ├── airline_yoy.py
+  │   ├── ranked_flights.py
+  │   └── single_margin.py
+  ├── render/                  # 答案渲染
+  │   ├── answer_renderer.py
+  │   └── failure_renderer.py
+  └── adapters/                # 适配器
+      └── openclaw_contract.py
+references/                    # 引用数据
+  ├── airport_aliases.yaml     # 机场别名
+  ├── column_aliases.yaml      # 列别名
+  ├── report_schemas.yaml      # 报表 Schema
+  └── synonyms.yaml           # 同义词
+tests/                        # 测试</pre>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>OpenClaw 集成</h2>
+        <div class="highlight-box">
+          <strong>重要：</strong>OpenClaw 应通过 <code>scripts/runner.py</code> 调用此技能，而不是直接使用 <code>query_opm_nl.py</code>。
+          <code>runner.py</code> 是稳定的技能接口，返回 OpenClaw 应消费的结构化信封。
+        </div>
+        <p>OpenClaw 集成规则：</p>
+        <ul class="feature-list">
+          <li>将此技能作为单一工具调用 <code>scripts/runner.py</code></li>
+          <li>消费返回的 JSON 信封，而不是直接检查 Excel 文件</li>
+          <li>如果技能返回结构化失败，不应运行临时命令</li>
+          <li>本地意图 LLM 仅可用于填充缺失的槽位</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>高级功能</h2>
+        <h3>本地意图 LLM</h3>
+        <p>如果需要使用本地小模型辅助槽位填充，设置环境变量：</p>
+        <div class="code-block">
+          <pre>$env:OPM_NL_INTENT_LLM_COMMAND = "your-local-intent-parser-command"</pre>
+        </div>
+        <h3>实时导出回退</h3>
+        <p>如果本地文件缺失、过时或包含仅标题的导出，可以触发实时导出：</p>
+        <div class="code-block">
+          <pre>pwsh -NoProfile -File scripts/export_report_live.ps1 -ReportName "未来航班客座率票价分析"</pre>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>参考文档</h2>
+        <ul class="feature-list">
+          <li><code>references/synonyms.yaml</code> - 意图同义词</li>
+          <li><code>references/column_aliases.yaml</code> - 指标到列的映射</li>
+          <li><code>references/user_scope.example.yaml</code> - "我的"范围映射模板</li>
+          <li><code>TECH_DESIGN.md</code> - 详细技术设计文档</li>
+          <li><code>SKILL.md</code> - 技能使用说明</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>OPM NL Report Query - 智能报表查询技能</p>
+    </div>
+  </div>
+</body>
+</html>

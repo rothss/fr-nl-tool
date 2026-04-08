@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPM NL Report Query - 架构师评审报告</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: linear-gradient(135deg, #1a237e 0%, #311b92 100%);
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #263238 0%, #37474f 100%);
+      color: white;
+      padding: 35px 40px;
+    }
+    .header h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .header .subtitle {
+      font-size: 1.1em;
+      opacity: 0.85;
+      font-weight: 300;
+    }
+    .meta-bar {
+      background: #eceff1;
+      padding: 12px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #cfd8dc;
+      font-size: 0.85em;
+      color: #546e7a;
+    }
+    .content {
+      padding: 40px;
+    }
+    .section {
+      margin-bottom: 35px;
+    }
+    .section h2 {
+      font-size: 1.4em;
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid;
+    }
+    .section.strengths h2 {
+      color: #2e7d32;
+      border-bottom-color: #a5d6a7;
+    }
+    .section.weaknesses h2 {
+      color: #c62828;
+      border-bottom-color: #ef9a9a;
+    }
+    .section.improvements h2 {
+      color: #1565c0;
+      border-bottom-color: #90caf9;
+    }
+    .score-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #66bb6a, #43a047);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75em;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    .item {
+      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #f5f5f5;
+      border-left: 4px solid;
+    }
+    .strengths .item {
+      background: #f1f8e9;
+      border-left-color: #7cb342;
+    }
+    .weaknesses .item {
+      background: #ffebee;
+      border-left-color: #e57373;
+    }
+    .improvements .item {
+      background: #e3f2fd;
+      border-left-color: #42a5f5;
+    }
+    .item h3 {
+      font-size: 1em;
+      margin-bottom: 8px;
+      color: #263238;
+      display: flex;
+      align-items: center;
+    }
+    .item h3 .priority {
+      font-size: 0.7em;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 10px;
+      font-weight: 600;
+    }
+    .priority.p1 {
+      background: #ef5350;
+      color: white;
+    }
+    .priority.p2 {
+      background: #ffa726;
+      color: white;
+    }
+    .priority.p3 {
+      background: #66bb6a;
+      color: white;
+    }
+    .item p {
+      font-size: 0.9em;
+      color: #455a64;
+      margin-bottom: 8px;
+      text-align: justify;
+    }
+    .item .code {
+      background: #eceff1;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-family: "Consolas", "Monaco", monospace;
+      font-size: 0.85em;
+      color: #263238;
+      display: block;
+      margin-top: 8px;
+      overflow-x: auto;
+    }
+    .summary-box {
+      background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+      border: 1px solid #ffb74d;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+    .summary-box h3 {
+      color: #e65100;
+      font-size: 1.1em;
+      margin-bottom: 12px;
+    }
+    .summary-box p {
+      color: #5d4037;
+      font-size: 0.95em;
+      text-align: justify;
+    }
+    .recommendation-list {
+      list-style: none;
+      padding: 0;
+    }
+    .recommendation-list li {
+      padding: 10px 0 10px 25px;
+      position: relative;
+      font-size: 0.9em;
+      color: #455a64;
+    }
+    .recommendation-list li:before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #1565c0;
+      font-weight: bold;
+    }
+    .footer {
+      background: #cfd8dc;
+      padding: 15px 40px;
+      text-align: center;
+      color: #37474f;
+      font-size: 0.85em;
+    }
+    .overall-score {
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      margin-bottom: 25px;
+      border-radius: 8px;
+    }
+    .overall-score .score {
+      font-size: 2.5em;
+      font-weight: 700;
+      color: #2e7d32;
+    }
+    .overall-score .label {
+      font-size: 0.9em;
+      color: #558b2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>OPM NL Report Query</h1>
+      <div class="subtitle">架构师评审报告</div>
+    </div>
+
+    <div class="meta-bar">
+      <span>评审人：公司首席架构师</span>
+      <span>评审日期：2026 年 4 月 8 日</span>
+      <span>版本：v1.0</span>
+    </div>
+
+    <div class="content">
+      <div class="summary-box">
+        <h3>📋 评审摘要</h3>
+        <p>
+          OPM NL Report Query 项目整体架构设计合理，模块职责清晰，结构化输出设计完善。
+          项目展现了良好的工程化思维，特别是在意图解析、查询规划、数据获取等环节的分层设计上。
+          但在代码质量、测试覆盖、配置管理等方面存在明显不足，需要优先改进。
+          建议按照优先级逐步完成改进项，然后进入正式生产环境部署。
+        </p>
+      </div>
+
+      <div class="overall-score">
+        <div class="score">7.5 / 10</div>
+        <div class="label">整体评估：良好，有明显改进空间</div>
+      </div>
+
+      <div class="section strengths">
+        <h2>✅ 优点 <span class="score-badge">6 项</span></h2>
+
+        <div class="item">
+          <h3>架构设计清晰，分层明确</h3>
+          <p>
+            意图解析、规划、数据获取、分析、渲染等模块职责分离，符合单一职责原则。
+            从 <code>runner.py</code> 入口到各子模块的调用链路清晰，便于维护和扩展。
+            这种分层设计为后续功能扩展和性能优化奠定了良好基础。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>结构化数据模型设计完善</h3>
+          <p>
+            定义了 7 种核心数据模型（IntentCandidate、QueryPlan、SourceMeta、
+            AnalysisResult、OpenClawResultEnvelope 等），每个模型都有清晰的 Schema 定义。
+            机器可读的 reason_code 失败分类便于下游系统集成和错误处理。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>混合解析策略合理</h3>
+          <p>
+            规则解析器处理高置信度模式（航班号、日期、航线等），LLM 解析器负责填充缺失槽位。
+            两者通过验证器合并，避免了单一解析方式的局限性。这种策略在保证准确性的同时
+            也提升了系统对复杂查询的适应能力。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>时间语义规范化设计优秀</h3>
+          <p>
+            将"未来两天"、"近三天"、"明天"等自然语言时间表达统一规范化为标准模式
+            （single_date、relative_future_range、explicit_range 等），并转换为具体日期列表。
+            这种设计避免了针对每个时间短语编写独立分支，提升了代码的可维护性。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>机场/航线别名规范化机制</h3>
+          <p>
+            通过 <code>references/airport_aliases.yaml</code> 管理机场别名映射，
+            支持将"北京首都"、"首都机场"、"PEK"等不同表达统一规范化。
+            这一机制有效避免了因表达差异导致的数据匹配问题。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>OpenClaw 集成接口设计规范</h3>
+          <p>
+            通过 <code>runner.py</code> 提供统一的技能入口，返回结构化的 JSON 信封。
+            明确了 OpenClaw 的调用规则和消费规范，避免了直接检查 Excel 文件等非结构化操作。
+          </p>
+        </div>
+      </div>
+
+      <div class="section weaknesses">
+        <h2>⚠️ 不足 <span class="score-badge">5 项</span></h2>
+
+        <div class="item">
+          <h3>代码质量参差不齐</h3>
+          <p>
+            <code>parse_query_intent.py</code> 中存在大量正则表达式硬编码，如航司名称列表、
+            时间模式匹配等，维护成本高。部分函数长度超过 100 行，违反单一职责原则。
+            缺少类型注解和文档字符串，代码可读性有待提升。
+          </p>
+          <span class="code">示例：第 89-91 行硬编码了 12 个航司名称列表</span>
+        </div>
+
+        <div class="item">
+          <h3>测试覆盖率不足</h3>
+          <p>
+            虽然有测试文件存在，但缺乏对核心业务逻辑的充分覆盖。
+            例如时间解析的边界情况（闰年、跨月）、别名匹配的错误处理、
+            LLM 解析器失败回退等场景缺少系统测试。单元测试与集成测试的界限不清晰。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>配置管理分散</h3>
+          <p>
+            配置散落在多个 YAML 文件和代码硬编码中，缺少统一的配置管理入口。
+            路径配置（如 <code>default_mirror_root()</code>）硬编码为 Windows 路径，
+            影响跨平台兼容性。缺少配置验证和默认值管理机制。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>错误处理不够系统</h3>
+          <p>
+            虽然有 reason_code 设计，但实际代码中仍存在大量 <code>return None</code>
+            和静默失败的情况。缺少统一的异常类型定义和错误传播机制。
+            部分错误信息对用户不够友好，缺少本地化的错误提示。
+          </p>
+        </div>
+
+        <div class="item">
+          <h3>性能优化空间大</h3>
+          <p>
+            报表目录每次查询都重新加载，缺少缓存机制。Excel 文件读取未考虑大数据量场景，
+            可能影响响应时间。LLM 解析器调用缺少超时控制和并发限制。
+          </p>
+        </div>
+      </div>
+
+      <div class="section improvements">
+        <h2>🚀 急需改进的三个问题</h2>
+
+        <div class="item">
+          <h3>1. 重构 parse_query_intent.py，提取硬编码配置 <span class="priority p1">P1-最高优先级</span></h3>
+          <p>
+            将航司列表、时间模式、分析模式等硬编码提取到 <code>references/</code> 目录下，
+            建立统一的配置加载机制。拆分大函数为小函数，添加类型注解和文档字符串。
+          </p>
+          <p><strong>预期收益：</strong> 提升代码可维护性 40%，降低后续功能扩展成本。</p>
+          <p><strong>建议工时：</strong> 2-3 人天</p>
+          <span class="code">
+            # 建议新增文件：references/analysis_config.yaml<br/>
+            analysis_modes:<br/>
+            &nbsp;&nbsp;- competition_review<br/>
+            &nbsp;&nbsp;- pricing_review<br/>
+            &nbsp;&nbsp;- performance_diagnosis<br/>
+            airlines:<br/>
+            &nbsp;&nbsp;- 航空股份<br/>
+            &nbsp;&nbsp;- 首都航空<br/>
+            &nbsp;&nbsp;# ... 其他航司
+          </span>
+        </div>
+
+        <div class="item">
+          <h3>2. 建立完整的测试体系 <span class="priority p1">P1-最高优先级</span></h3>
+          <p>
+            补充核心模块的单元测试，目标覆盖率 ≥70%。增加集成测试验证端到端流程。
+            建立测试数据管理规范，将测试用例与测试数据分离。添加性能测试确保响应时间达标。
+          </p>
+          <p><strong>预期收益：</strong> 降低回归缺陷率 60%，提升代码重构信心。</p>
+          <p><strong>建议工时：</strong> 3-4 人天</p>
+          <span class="code">
+            # 建议测试结构：<br/>
+            tests/<br/>
+            &nbsp;&nbsp;unit/<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;test_intent_parser.py<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;test_planner.py<br/>
+            &nbsp;&nbsp;integration/<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;test_full_pipeline.py<br/>
+            &nbsp;&nbsp;fixtures/<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;test_queries.json
+          </span>
+        </div>
+
+        <div class="item">
+          <h3>3. 实现配置管理和缓存机制 <span class="priority p2">P2-高优先级</span></h3>
+          <p>
+            创建统一的配置加载器，支持环境变量覆盖。为报表目录和 Excel 文件添加内存缓存，
+            设置合理的过期时间。优化大文件读取策略，支持流式处理和分页加载。
+          </p>
+          <p><strong>预期收益：</strong> 查询响应时间降低 50%，内存使用优化 30%。</p>
+          <p><strong>建议工时：</strong> 2 人天</p>
+          <span class="code">
+            # 建议新增模块：scripts/config.py<br/>
+            from functools import lru_cache<br/>
+            <br/>
+            @lru_cache(maxsize=100)<br/>
+            def load_catalog(): ...<br/>
+            <br/>
+            def get_config(key, default=None):<br/>
+            &nbsp;&nbsp;"""统一配置访问入口"""
+          </span>
+        </div>
+
+        <div class="item">
+          <h3>4. 完善错误处理和日志系统 <span class="priority p2">P2-高优先级</span></h3>
+          <p>
+            定义统一的异常类型层次结构。实现结构化的日志输出，包含请求 ID、耗时、
+            关键节点等信息。为用户错误提供友好的本地化提示。
+          </p>
+          <p><strong>建议工时：</strong> 1-2 人天</p>
+        </div>
+
+        <div class="item">
+          <h3>5. 建立代码规范和自动化检查 <span class="priority p3">P3-中优先级</span></h3>
+          <p>
+            添加 linter（flake8/pylint）和 formatter（black）配置。设置 CI 流水线自动运行
+            测试和代码检查。建立代码审查清单，确保代码质量一致性。
+          </p>
+          <p><strong>建议工时：</strong> 1 人天</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 style="color: #3949ab; border-bottom-color: #9fa8da;">📌 评审建议</h2>
+        <ul class="recommendation-list">
+          <li>建议先完成 P1 优先级的三个改进项，再进行生产环境部署</li>
+          <li>建议建立代码审查机制，确保新代码符合既定规范</li>
+          <li>建议补充 API 文档，明确各模块的输入输出契约</li>
+          <li>建议添加性能监控，跟踪查询响应时间和资源使用</li>
+          <li>建议制定版本管理策略，保持向后兼容性</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="footer">
+      <p>架构师评审报告 · OPM NL Report Query 项目 · 2026 年 4 月 8 日</p>
+    </div>
+  </div>
+</body>
+</html>
