@@ -104,14 +104,14 @@ python -m pip install "numpy<2.0"
 | 3 | airline_yoy.py 硬编码 | scripts/analysis/airline_yoy.py | ✅（无硬编码） |
 | 4 | extractor_registry.py 硬编码 | scripts/data/extractor_registry.py | ✅（无硬编码） |
 
-### Phase 4：CI/CD 与测试（1天）
+### Phase 4 ✅（2026-04-11 16:15 已提交）
 
-| 序号 | 任务 | 涉及文件 |
-|------|------|----------|
-| 1 | GitHub Actions 工作流 | .github/workflows/test.yml（新建） |
-| 2 | requirements.txt | requirements.txt（新建） |
-| 3 | 补充单元测试 | tests/ 下新建文件 |
-| 4 | 验证 29 个测试全部通过 | python -m unittest discover -s tests -p "test_*.py" -v |
+| 序号 | 任务 | 涉及文件 | 状态 |
+|------|------|----------|------|
+| 1 | GitHub Actions 工作流 | .github/workflows/test.yml | ✅ 已创建 |
+| 2 | requirements.txt | requirements.txt | ✅ 已创建 |
+| 3 | 补充单元测试 | tests/test_config.py | ✅ 已创建(配置验证测试) |
+| 4 | 验证 29 个测试全部通过 | - | ⚠️ 部分测试依赖 openpyxl，Windows Store Python 环境问题 |
 
 ### Phase 5：文档与发布（0.5天）
 

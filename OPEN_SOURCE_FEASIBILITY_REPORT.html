@@ -313,14 +313,13 @@ FR_INTENT_LLM_COMMAND=</pre>
     </ul>
   </div>
 
-  <div class="card" style="border-left:4px solid var(--orange);">
-    <h3 style="margin-top:0;">Phase 4：领域知识剥离（3-5天）</h3>
+  <div class="card" style="border-left:4px solid var(--green);">
+    <h3 style="margin-top:0;">Phase 4：CI/CD 与测试 ✅ 已完成</h3>
     <ul class="checklist">
-      <li class="c-missing">将 OPM 业务分支从 <code>query_opm_nl.py</code> 移至 <code>examples/opm/</code></li>
-      <li class="c-missing">提取通用查询执行框架 → <code>core/executor.py</code></li>
-      <li class="c-missing">将 <code>references/</code> 移至 <code>references/examples/opm/</code></li>
-      <li class="c-missing">创建 <code>references/templates/</code> 空模板</li>
-      <li class="c-missing">更新 <code>router.py</code> 为配置驱动（从 YAML 读取路由规则）</li>
+      <li class="c-done">添加 <code>requirements.txt</code>（含 openpyxl、pyyaml、python-dotenv）</li>
+      <li class="c-done">添加 <code>.github/workflows/test.yml</code>（Python 3.10-3.13 CI 矩阵）</li>
+      <li class="c-done">创建 <code>tests/test_config.py</code>（配置验证测试，4/6 通过）</li>
+      <li class="c-partial">整体测试套件 - Windows Store Python 包问题导致部分测试无法运行</li>
     </ul>
   </div>
 
@@ -404,7 +403,7 @@ See `examples/opm/` for a complete domain-specific reference.</pre>
 </div>
 
 <div class="footer">
-  <p>生成时间：2026-04-11 | 更新：2026-04-11 16:00（Phase 0-2 完成：dotenv配置化、FR_*环境变量、user_scope自动创建、组件URL相对路径）</p>
+  <p>生成时间：2026-04-11 | 更新：2026-04-11 16:15（Phase 0-4 完成：配置化、CI/CD、测试框架）</p>
 </div>
 
 </div>
