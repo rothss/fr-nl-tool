@@ -95,14 +95,14 @@ python -m pip install "numpy<2.0"
 文件：OPEN_SOURCE_FEASIBILITY_REPORT.html
 - Phase 0 ✅ 已完成，Phase 1 ✅ 已完成，Phase 2 ✅ 已完成
 
-### Phase 3：分析链路配置化（1天）
+### Phase 3 ✅（2026-04-11 16:05 已提交）
 
-| 序号 | 任务 | 涉及文件 |
-|------|------|----------|
-| 1 | ranked_flights.py 硬编码路径 | scripts/analysis/ranked_flights.py |
-| 2 | future_flight_competition.py 硬编码 | scripts/analysis/future_flight_competition.py |
-| 3 | airline_yoy.py 硬编码 | scripts/analysis/airline_yoy.py |
-| 4 | extractor_registry.py 硬编码 | scripts/data/extractor_registry.py |
+| 序号 | 任务 | 涉及文件 | 状态 |
+|------|------|----------|------|
+| 1 | ranked_flights.py 硬编码路径 | scripts/analysis/ranked_flights.py | ✅（无硬编码，使用 source_meta） |
+| 2 | future_flight_competition.py 硬编码 | scripts/analysis/future_flight_competition.py | ✅（无硬编码） |
+| 3 | airline_yoy.py 硬编码 | scripts/analysis/airline_yoy.py | ✅（无硬编码） |
+| 4 | extractor_registry.py 硬编码 | scripts/data/extractor_registry.py | ✅（无硬编码） |
 
 ### Phase 4：CI/CD 与测试（1天）
 
