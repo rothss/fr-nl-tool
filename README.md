@@ -40,7 +40,7 @@ python scripts/runner.py "海口到北京的客座率" --output-format json
 .
 ├── scripts/           # 核心脚本
 │   ├── runner.py     # 主入口
-│   ├── query_opm_nl.py  # 查询执行
+│   ├── query_fr_nl.py  # 查询执行
 │   └── analysis/     # 分析引擎
 ├── references/       # 配置文件
 │   ├── synonyms.yaml # 同义词映射

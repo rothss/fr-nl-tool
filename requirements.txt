@@ -1,4 +1,4 @@
-# Core dependencies for opm-nl-report-query
+# Core dependencies for fr-nl-report-query
 # Python 3.10+ required
 
 # Excel processing

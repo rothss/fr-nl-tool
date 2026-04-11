@@ -13,11 +13,11 @@ SCRIPTS_DIR = ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-import query_opm_nl  # noqa: E402
+import query_fr_nl  # noqa: E402
 
 
 CASE_FILE = Path(__file__).with_name("offline_query_cases.json")
-MIRROR_ROOT = Path(r"C:\Users\ZhuanZ\opm_mirror")
+MIRROR_ROOT = Path(r"C:\Users\ZhuanZ\fr_mirror")
 CATALOG_DB = MIRROR_ROOT / "search_index" / "report_catalog.db"
 USER_SCOPE = MIRROR_ROOT / "search_index" / "user_scope.yaml"
 
@@ -31,7 +31,10 @@ def _get_by_path(payload: dict, dotted: str):
     return cur
 
 
-@unittest.skipUnless(MIRROR_ROOT.exists() and CATALOG_DB.exists() and USER_SCOPE.exists(), "local OPM mirror not available")
+@unittest.skipUnless(
+    MIRROR_ROOT.exists() and CATALOG_DB.exists() and USER_SCOPE.exists(),
+    "local FR mirror not available",
+)
 class OfflineQueryIntegrationTests(unittest.TestCase):
     maxDiff = None
 
@@ -44,13 +47,29 @@ class OfflineQueryIntegrationTests(unittest.TestCase):
         for case in self.cases:
             with self.subTest(case=case["name"]):
                 with (
-                    patch.object(query_opm_nl, "should_force_live_refresh_by_freshness", return_value=False),
-                    patch.object(query_opm_nl, "run_live_refresh", return_value=(False, "disabled_in_test")),
-                    patch.object(query_opm_nl, "run_fast_future_kzl_export", return_value=(False, "disabled_in_test")),
-                    patch.object(query_opm_nl, "run_generic_live_export", return_value=(False, "disabled_in_test")),
-                    patch.object(query_opm_nl, "record_profile_hit", return_value=None),
+                    patch.object(
+                        query_fr_nl,
+                        "should_force_live_refresh_by_freshness",
+                        return_value=False,
+                    ),
+                    patch.object(
+                        query_fr_nl,
+                        "run_live_refresh",
+                        return_value=(False, "disabled_in_test"),
+                    ),
+                    patch.object(
+                        query_fr_nl,
+                        "run_fast_future_kzl_export",
+                        return_value=(False, "disabled_in_test"),
+                    ),
+                    patch.object(
+                        query_fr_nl,
+                        "run_generic_live_export",
+                        return_value=(False, "disabled_in_test"),
+                    ),
+                    patch.object(query_fr_nl, "record_profile_hit", return_value=None),
                 ):
-                    result = query_opm_nl.run_query(
+                    result = query_fr_nl.run_query(
                         query=case["query"],
                         user=case.get("user"),
                         mirror_root=MIRROR_ROOT,

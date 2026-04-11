@@ -3,7 +3,7 @@ from __future__ import annotations
 
 def _apply_airport_codes(route: dict, alias_dict: dict | None) -> dict:
     route = dict(route or {})
-    cities = ((alias_dict or {}).get("cities") or {})
+    cities = (alias_dict or {}).get("cities") or {}
     alias_to_canonical: dict[str, str] = {}
     for canonical, meta in cities.items():
         alias_to_canonical[str(canonical)] = str(canonical)
@@ -34,12 +34,19 @@ def validate_and_repair_intent(
     if llm_candidate:
         for key, value in llm_candidate.items():
             if key == "parser_trace":
-                merged[key] = list(merged.get(key) or []) + [str(x) for x in (value or [])]
+                merged[key] = list(merged.get(key) or []) + [
+                    str(x) for x in (value or [])
+                ]
                 continue
             if isinstance(value, dict) and isinstance(merged.get(key), dict):
                 child = dict(merged.get(key) or {})
                 for child_key, child_value in value.items():
-                    if child_key not in child or child.get(child_key) in (None, "", [], {}):
+                    if child_key not in child or child.get(child_key) in (
+                        None,
+                        "",
+                        [],
+                        {},
+                    ):
                         child[child_key] = child_value
                 merged[key] = child
                 continue
@@ -54,15 +61,21 @@ def validate_and_repair_intent(
 
     missing_slots: list[str] = []
     route = merged.get("route") or {}
-    if (route.get("origin_norm") and not route.get("destination_norm")) or (route.get("destination_norm") and not route.get("origin_norm")):
-        missing_slots.append("route.destination" if route.get("origin_norm") else "route.origin")
+    if (route.get("origin_norm") and not route.get("destination_norm")) or (
+        route.get("destination_norm") and not route.get("origin_norm")
+    ):
+        missing_slots.append(
+            "route.destination" if route.get("origin_norm") else "route.origin"
+        )
 
     metrics = merged.get("metrics") or []
     if not metrics:
         missing_slots.append("metrics")
 
     time_info = merged.get("time") or {}
-    if time_info.get("mode") and (not time_info.get("start_date") or not time_info.get("end_date")):
+    if time_info.get("mode") and (
+        not time_info.get("start_date") or not time_info.get("end_date")
+    ):
         missing_slots.append("time.range")
 
     score = 0.25
@@ -77,13 +90,17 @@ def validate_and_repair_intent(
     merged["confidence"] = min(1.0, score)
     merged["missing_slots"] = missing_slots
 
-    if merged.get("route", {}).get("origin_norm") and merged.get("route", {}).get("destination_norm"):
+    if merged.get("route", {}).get("origin_norm") and merged.get("route", {}).get(
+        "destination_norm"
+    ):
         if (merged.get("analysis") or {}).get("mode") == "competition_review":
-            merged["domain"] = "opm_future_flight"
+            merged["domain"] = "fr_future_flight"
             merged["intent_type"] = "route_competition_diagnosis"
         else:
-            merged["domain"] = "opm_route_query"
+            merged["domain"] = "fr_route_query"
             merged["intent_type"] = "route_metric_lookup"
     if llm_candidate:
-        merged["parser_trace"] = list(dict.fromkeys(list(merged.get("parser_trace") or []) + ["llm:slot_fill"]))
+        merged["parser_trace"] = list(
+            dict.fromkeys(list(merged.get("parser_trace") or []) + ["llm:slot_fill"])
+        )
     return merged

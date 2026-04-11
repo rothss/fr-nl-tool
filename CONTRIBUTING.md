@@ -52,7 +52,7 @@ python -m unittest tests.test_config -v
 ```bash
 # 克隆仓库
 git clone <repository-url>
-cd opm-nl-report-query
+cd fr-nl-report-query
 
 # 创建虚拟环境
 python -m venv venv

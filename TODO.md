@@ -1,4 +1,4 @@
-# opm-nl-report-query 开源重构 - 详细任务清单
+# fr-nl-report-query 开源重构 - 详细任务清单
 
 > 创建时间：2026-04-11 11:35 | 状态：进行中 | 接手 AI 请仔细阅读全部内容
 
@@ -14,7 +14,7 @@
 | 2 | 创建 .env.example | 新文件，含所有 FR_* 环境变量 |
 | 3 | common.py 引入 dotenv | scripts/common.py |
 | 4 | 所有 .mjs 环境变量 OPM_* → FR_*（向后兼容） | 6 个 .mjs 脚本 |
-| 5 | query_opm_nl.py: CDP URL 支持 FR_CDP_URL | scripts/query_opm_nl.py |
+| 5 | query_fr_nl.py: CDP URL 支持 FR_CDP_URL | scripts/query_fr_nl.py |
 | 6 | intent/parser_llm.py: 支持 FR_INTENT_LLM_COMMAND | scripts/intent/parser_llm.py |
 | 7 | runner.py: 硬编码路径 → default_mirror_root() | scripts/runner.py |
 | 8 | discover_components_from_network.mjs: 硬编码 URL 修复 | scripts/discover_components_from_network.mjs |
@@ -25,10 +25,10 @@
 
 | 序号 | 任务 | 变更文件 |
 |------|------|----------|
-| 1 | query_opm_nl.py:507 base URL → FR_BASE_URL | scripts/query_opm_nl.py |
+| 1 | query_fr_nl.py:507 base URL → FR_BASE_URL | scripts/query_fr_nl.py |
 | 2 | export_components_and_index.py:53 base URL → FR_BASE_URL | scripts/export_components_and_index.py |
-| 3 | query_opm_nl.py:1579 user-scope 默认路径 → default_mirror_root() | scripts/query_opm_nl.py |
-| 4 | query_opm_nl.py: 示例数据 5 个硬编码路径 → default_mirror_root() | scripts/query_opm_nl.py |
+| 3 | query_fr_nl.py:1579 user-scope 默认路径 → default_mirror_root() | scripts/query_fr_nl.py |
+| 4 | query_fr_nl.py: 示例数据 5 个硬编码路径 → default_mirror_root() | scripts/query_fr_nl.py |
 | 5 | export_report_live.ps1: 硬编码路径 → FR_* 环境变量 | scripts/export_report_live.ps1 |
 
 ### OPEN_SOURCE_FEASIBILITY_REPORT.html 已更新
@@ -159,7 +159,7 @@ python -m pip install "numpy<2.0"
 | 文件 | 作用 |
 |------|------|
 | scripts/common.py | dotenv 加载、default_mirror_root()、load_yaml_or_json() |
-| scripts/query_opm_nl.py | 主查询入口 |
+| scripts/query_fr_nl.py | 主查询入口 |
 | scripts/runner.py | CLI 入口 |
 | scripts/intent/parser_rules.py | 规则解析，依赖 synonyms.yaml |
 | scripts/intent/parser_llm.py | LLM 解析 |

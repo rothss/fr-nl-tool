@@ -20,7 +20,7 @@ def normalize_query(query: str, alias_dict: dict | None = None) -> dict:
     cleaned = cleaned.replace("（", "(").replace("）", ")")
     cleaned = re.sub(r"\s+", "", cleaned)
     cleaned = cleaned.replace("－", "-").replace("—", "-").replace("–", "-")
-    cleaned = re.sub(r"^(使用opm_nl的skill，?|用opm_nl的skill，?)", "", cleaned)
+    cleaned = re.sub(r"^(使用fr_nl的skill，?|用fr_nl的skill，?)", "", cleaned)
 
     tokens = [t for t in re.split(r"([到,\-])", cleaned) if t]
     return {

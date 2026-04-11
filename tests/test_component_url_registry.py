@@ -12,7 +12,7 @@ SCRIPTS_DIR = ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from query_opm_nl import build_component_url_from_binding, select_component_binding  # noqa: E402
+from query_fr_nl import build_component_url_from_binding, select_component_binding  # noqa: E402
 
 
 class ComponentUrlRegistryTests(unittest.TestCase):

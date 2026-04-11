@@ -1,5 +1,5 @@
 ---
-name: opm-nl-report-query
+name: fr-nl-report-query
 description: Answer natural-language OPM KPI questions by parsing intent, ranking matching reports, extracting structured table rows from local OPM mirror Excel files, and optionally falling back to live export. Use when users ask questions like "我的包干航线的客座率是多少", "HU7778明天的余票", or "未来航班竞航价格差".
 ---
 
@@ -12,16 +12,16 @@ Use this skill to bridge business-language questions and OPM report data retriev
 Build report catalog:
 
 ```powershell
-python C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\scripts\build_report_catalog.py
+python C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\build_report_catalog.py
 ```
 
 Query by natural language:
 
 ```powershell
-python C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\scripts\runner.py "我的包干航线的客座率是多少" --user zhuanz --output-format json
+python C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\runner.py "我的包干航线的客座率是多少" --user zhuanz --output-format json
 ```
 
-For OpenClaw integration, always call the skill through `scripts\runner.py`, not `query_opm_nl.py` directly.
+For OpenClaw integration, always call the skill through `scripts\runner.py`, not `query_fr_nl.py` directly.
 `runner.py` is the stable skill contract and returns the structured envelope OpenClaw should consume.
 
 ## Workflow
@@ -59,7 +59,7 @@ It is used only to fill missing intent slots and is optional; the skill works wi
 If local file is missing, stale, or contains header-only export, call:
 
 ```powershell
-pwsh -NoProfile -File C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\scripts\export_report_live.ps1 -ReportName "未来航班客座率票价分析"
+pwsh -NoProfile -File C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\export_report_live.ps1 -ReportName "未来航班客座率票价分析"
 ```
 
 This wrapper delegates to existing OPM download/export scripts. If login is invalid, open fixed-profile Edge and ask the user to scan QR.
@@ -67,7 +67,7 @@ This wrapper delegates to existing OPM download/export scripts. If login is inva
 Generic exporter:
 
 ```powershell
-node C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\scripts\export_report_generic_live.mjs --report-path "doc/Fdjt/xxx.cpt" --output-file "C:/Users/ZhuanZ/opm_mirror/tmp/live.xlsx" --filters-json "{\"flight_date\":[\"2026-03-29\"],\"company\":\"航空股份\"}"
+node C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\export_report_generic_live.mjs --report-path "doc/Fdjt/xxx.cpt" --output-file "C:/Users/ZhuanZ/opm_mirror/tmp/live.xlsx" --filters-json "{\"flight_date\":[\"2026-03-29\"],\"company\":\"航空股份\"}"
 ```
 
 ## References

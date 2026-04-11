@@ -27,7 +27,12 @@ def _extract_json_object(text: str) -> dict | None:
 
 class LLMIntentParser:
     def __init__(self, command: str | None = None) -> None:
-        self.command = command or os.environ.get("FR_INTENT_LLM_COMMAND", os.environ.get("OPM_NL_INTENT_LLM_COMMAND", "")).strip()
+        self.command = (
+            command
+            or os.environ.get(
+                "FR_INTENT_LLM_COMMAND", os.environ.get("OPM_NL_INTENT_LLM_COMMAND", "")
+            ).strip()
+        )
 
     @property
     def enabled(self) -> bool:
@@ -37,7 +42,7 @@ class LLMIntentParser:
         if not self.enabled:
             return None
         payload = {
-            "task": "opm_intent_slot_fill",
+            "task": "fr_intent_slot_fill",
             "query": str(normalized_query or ""),
             "hints": hints or {},
         }
@@ -58,7 +63,8 @@ class LLMIntentParser:
         return _extract_json_object(proc.stdout)
 
 
-def maybe_parse_with_local_llm(normalized_query: str, hints: dict | None = None) -> dict | None:
+def maybe_parse_with_local_llm(
+    normalized_query: str, hints: dict | None = None
+) -> dict | None:
     parser = LLMIntentParser()
     return parser.parse(normalized_query, hints=hints)
-

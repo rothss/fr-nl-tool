@@ -5,12 +5,10 @@
 
 # Local data mirrors
 fr_mirror/
-opm_mirror/
 *.db
 
 # Batch output
 fr_batch/
-opm_batch/
 
 # Python
 __pycache__/

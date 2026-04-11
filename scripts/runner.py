@@ -18,7 +18,7 @@ from data.source_loader import acquire_source, should_block_on_preflight
 from parse_query_intent import parse_query
 from planning.planner import build_query_plan as build_schema_aware_plan
 from planning.router import route_report_family
-from query_opm_nl import run_query as execute_query
+from query_fr_nl import run_query as execute_query
 from render.answer_renderer import render_answer_text
 
 

@@ -1,6 +1,6 @@
 interface:
   display_name: "OPM NL Report Query"
   short_description: "Natural-language OPM metric report query"
-  default_prompt: "Use $opm-nl-report-query to answer natural-language OPM KPI questions by parsing intent, ranking matching reports, extracting structured rows, and returning metric values with source context."
+  default_prompt: "Use $fr-nl-report-query to answer natural-language OPM KPI questions by parsing intent, ranking matching reports, extracting structured rows, and returning metric values with source context."
 policy:
   allow_implicit_invocation: true
