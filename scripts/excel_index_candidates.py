@@ -15,11 +15,13 @@ def default_excel_index_db(mirror_root: Path) -> Path | None:
     p1 = mirror_root / "search_index" / "excel_index.db"
     if p1.exists():
         return p1
-    p2 = Path(
-        r"C:\Users\ZhuanZ\finereport-search\release\fr-metric-search-runtime-latest\data\fr_mirror\search_index\excel_index.db"
-    )
-    if p2.exists():
-        return p2
+    fallback_env = os.environ.get("FR_EXCEL_INDEX_FALLBACK_DB")
+    if fallback_env:
+        p2 = Path(fallback_env)
+        if not p2.is_absolute():
+            p2 = Path(__file__).parent.parent / fallback_env
+        if p2.exists():
+            return p2
     return None
 
 
@@ -88,7 +90,9 @@ def _derive_dir_path(file_path: str, mirror_root: Path) -> str:
     return str(p.parent).replace("\\", "/")
 
 
-def rank_candidates_from_excel_index(intent: dict, excel_index_db: Path, mirror_root: Path, top_n: int = 30) -> list[dict]:
+def rank_candidates_from_excel_index(
+    intent: dict, excel_index_db: Path, mirror_root: Path, top_n: int = 30
+) -> list[dict]:
     if not excel_index_db.exists():
         return []
     terms = _intent_terms(intent)
@@ -120,7 +124,9 @@ def rank_candidates_from_excel_index(intent: dict, excel_index_db: Path, mirror_
             for workbook_id, file_path, file_name in rows:
                 wid = int(workbook_id)
                 meta[wid] = (str(file_path), str(file_name))
-                score[wid] = score.get(wid, 0.0) + (16.0 if (metric and t == metric) else 8.0)
+                score[wid] = score.get(wid, 0.0) + (
+                    16.0 if (metric and t == metric) else 8.0
+                )
 
             try:
                 rows2 = conn.execute(
@@ -165,4 +171,3 @@ def rank_candidates_from_excel_index(intent: dict, excel_index_db: Path, mirror_
             }
         )
     return out
-

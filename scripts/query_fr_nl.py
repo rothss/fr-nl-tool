@@ -20,9 +20,20 @@ from analysis.ranked_flights import (
     render_first_flight_bottom10_answer as render_first_flight_bottom10_answer_v2,
     render_top_metric_flight_answer as render_top_metric_flight_answer_v2,
 )
-from common import default_catalog_db, default_mirror_root, default_profile_db, find_report_cpt_path, is_stale_file, load_yaml_or_json, references_dir
+from common import (
+    default_catalog_db,
+    default_mirror_root,
+    default_profile_db,
+    find_report_cpt_path,
+    is_stale_file,
+    load_yaml_or_json,
+    references_dir,
+)
 from data.extractor_registry import get_analysis_renderer
-from excel_index_candidates import default_excel_index_db, rank_candidates_from_excel_index
+from excel_index_candidates import (
+    default_excel_index_db,
+    rank_candidates_from_excel_index,
+)
 from extract_adjusted_profit_overview import extract_adjusted_profit_overview_rows
 from extract_single_margin import extract_single_margin_rows
 from extract_structured_table import extract_table
@@ -47,7 +58,12 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
             rn = str(c.get("report_name") or "")
             if rn == "单机边际贡献":
                 return c
-        fixed = default_mirror_root() / "市场经营指标" / "主要经营指标" / "单机边际贡献.xlsx"
+        fixed = (
+            default_mirror_root()
+            / "市场经营指标"
+            / "主要经营指标"
+            / "单机边际贡献.xlsx"
+        )
         if fixed.exists():
             return {
                 "report_id": -1,
@@ -63,12 +79,18 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
         return {
             "report_id": -3,
             "report_name": "航空集团收入利润概览（调整后）",
-            "file_path": str(default_mirror_root() / "航空板块经营报表" / "航空集团收入利润概览（调整后）.xlsx"),
+            "file_path": str(
+                default_mirror_root()
+                / "航空板块经营报表"
+                / "航空集团收入利润概览（调整后）.xlsx"
+            ),
             "dir_path": "航空板块经营报表",
             "score": 0,
             "score_breakdown": {},
         }
-    if bool(filters.get("compare_scope") == "airline_yoy") or ("航司" in raw_query and "同比" in raw_query):
+    if bool(filters.get("compare_scope") == "airline_yoy") or (
+        "航司" in raw_query and "同比" in raw_query
+    ):
         for c in ranked:
             rn = str(c.get("report_name") or "")
             if "航空集团经营提升分析" in rn:
@@ -82,11 +104,19 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
             "score": 0,
             "score_breakdown": {},
         }
-    if ("前十后十" in raw_query) or ("后十" in raw_query) or bool(filters.get("rank_scope")):
-        want_flight = ("航班" in raw_query) and ("航线" not in raw_query or "前十后十航班" in raw_query)
+    if (
+        ("前十后十" in raw_query)
+        or ("后十" in raw_query)
+        or bool(filters.get("rank_scope"))
+    ):
+        want_flight = ("航班" in raw_query) and (
+            "航线" not in raw_query or "前十后十航班" in raw_query
+        )
         for c in ranked:
             rn = str(c.get("report_name") or "")
-            if "前十后十" in rn and ((want_flight and "航班" in rn) or ((not want_flight) and "航线" in rn)):
+            if "前十后十" in rn and (
+                (want_flight and "航班" in rn) or ((not want_flight) and "航线" in rn)
+            ):
                 return c
         for c in ranked:
             rn = str(c.get("report_name") or "")
@@ -102,7 +132,9 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
                 "score": 0,
                 "score_breakdown": {},
             }
-    has_route_or_time = bool(filters.get("segment_from") and filters.get("segment_to")) or bool(filters.get("depart_time"))
+    has_route_or_time = bool(
+        filters.get("segment_from") and filters.get("segment_to")
+    ) or bool(filters.get("depart_time"))
     if has_route_or_time:
         for c in ranked:
             if "客座率票价分析" in str(c.get("report_name") or ""):
@@ -121,7 +153,9 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
     return ranked[0]
 
 
-def needs_live_refresh(extracted: dict, metric_col: str | None, filtered_count: int | None = None) -> bool:
+def needs_live_refresh(
+    extracted: dict, metric_col: str | None, filtered_count: int | None = None
+) -> bool:
     rows = extracted.get("rows") or []
     meaningful_row_count = int(extracted.get("meaningful_row_count") or 0)
     if len(rows) == 0 or meaningful_row_count == 0:
@@ -135,12 +169,19 @@ def needs_live_refresh(extracted: dict, metric_col: str | None, filtered_count: 
     return False
 
 
-def should_force_live_refresh_by_freshness(top_file: Path | None, db_path: Path | None, excel_index_db: Path | None, max_age_seconds: int = 3600) -> bool:
+def should_force_live_refresh_by_freshness(
+    top_file: Path | None,
+    db_path: Path | None,
+    excel_index_db: Path | None,
+    max_age_seconds: int = 3600,
+) -> bool:
     if is_stale_file(top_file, max_age_seconds=max_age_seconds):
         return True
     if is_stale_file(db_path, max_age_seconds=max_age_seconds):
         return True
-    if excel_index_db and is_stale_file(excel_index_db, max_age_seconds=max_age_seconds):
+    if excel_index_db and is_stale_file(
+        excel_index_db, max_age_seconds=max_age_seconds
+    ):
         return True
     return False
 
@@ -163,15 +204,31 @@ def update_catalog_entry(db_path: Path, file_path: Path) -> None:
         return
 
 
-def run_incremental_excel_index(mirror_root: Path, excel_db: Path | None) -> tuple[bool, str]:
+def run_incremental_excel_index(
+    mirror_root: Path, excel_db: Path | None
+) -> tuple[bool, str]:
     if not excel_db:
         return False, "excel_index_db_missing"
-    build_index_py = Path(r"C:\Users\ZhuanZ\finereport-search\tools\excel-search-sqlite\scripts\build_index.py")
+    build_index_env = os.environ.get("FR_BUILD_INDEX_PY", "")
+    if build_index_env:
+        build_index_py = Path(build_index_env)
+        if not build_index_py.is_absolute():
+            build_index_py = Path(__file__).parent.parent / build_index_env
+    else:
+        build_index_py = Path(__file__).parent.parent / "scripts" / "build_index.py"
     if not build_index_py.exists():
         return False, "build_index_py_missing"
     try:
         proc = subprocess.run(
-            ["python", str(build_index_py), "--root", str(mirror_root), "--db", str(excel_db), "--incremental"],
+            [
+                "python",
+                str(build_index_py),
+                "--root",
+                str(mirror_root),
+                "--db",
+                str(excel_db),
+                "--incremental",
+            ],
             check=False,
             capture_output=True,
             timeout=180,
@@ -213,7 +270,16 @@ def run_live_refresh(report_name: str, overwrite: str = "always") -> tuple[bool,
     script = Path(__file__).resolve().parent / "export_report_live.ps1"
     try:
         proc = subprocess.run(
-            ["pwsh", "-NoProfile", "-File", str(script), "-ReportName", report_name, "-Overwrite", overwrite],
+            [
+                "pwsh",
+                "-NoProfile",
+                "-File",
+                str(script),
+                "-ReportName",
+                report_name,
+                "-Overwrite",
+                overwrite,
+            ],
             check=False,
             capture_output=True,
             timeout=60,
@@ -245,7 +311,9 @@ def run_live_refresh(report_name: str, overwrite: str = "always") -> tuple[bool,
     return False, msg
 
 
-def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> tuple[bool, str]:
+def run_fast_future_kzl_export(
+    intent: dict, output_file: str | None = None
+) -> tuple[bool, str]:
     script = Path(__file__).resolve().parent / "export_future_kzl_live.mjs"
     filters = intent.get("filters") or {}
     base_args = ["node", str(script)]
@@ -255,7 +323,12 @@ def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> 
     if dates:
         base_args += ["--date-start", str(dates[0]), "--date-end", str(dates[0])]
     if filters.get("date_start") and filters.get("date_end"):
-        base_args += ["--date-start", str(filters.get("date_start")), "--date-end", str(filters.get("date_end"))]
+        base_args += [
+            "--date-start",
+            str(filters.get("date_start")),
+            "--date-end",
+            str(filters.get("date_end")),
+        ]
     flight_nos = filters.get("flight_no") or []
     if flight_nos:
         base_args += ["--flight-no", str(flight_nos[0])]
@@ -276,7 +349,11 @@ def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> 
                 continue
         return raw.decode("utf-8", errors="ignore")
 
-    default_cdp = str(os.environ.get("FR_CDP_URL") or os.environ.get("OPM_EDGE_CDP_URL") or "http://127.0.0.1:9222").strip()
+    default_cdp = str(
+        os.environ.get("FR_CDP_URL")
+        or os.environ.get("OPM_EDGE_CDP_URL")
+        or "http://127.0.0.1:9222"
+    ).strip()
     cdp_candidates: list[str] = []
     for cdp in (default_cdp, "http://127.0.0.1:9222"):
         cdp = str(cdp or "").strip()
@@ -303,7 +380,7 @@ def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> 
         err = _decode(proc.stderr or b"").strip()
         if proc.returncode == 0:
             return True, out
-        last_error = (err or out or f"fast_future_export_failed cdp={cdp_url}")
+        last_error = err or out or f"fast_future_export_failed cdp={cdp_url}"
     return False, last_error
 
 
@@ -346,7 +423,9 @@ def run_fast_single_margin_export(output_file: str) -> tuple[bool, str]:
     return False, (err or out)
 
 
-def run_generic_live_export(report_path: str, output_file: str, intent: dict) -> tuple[bool, str]:
+def run_generic_live_export(
+    report_path: str, output_file: str, intent: dict
+) -> tuple[bool, str]:
     script = Path(__file__).resolve().parent / "export_report_generic_live.mjs"
     filters = intent.get("filters") or {}
     args = [
@@ -388,7 +467,9 @@ def run_generic_live_export(report_path: str, output_file: str, intent: dict) ->
     return False, (err or out)
 
 
-def run_component_live_export(report_path: str, output_file: str, intent: dict, component_keyword: str) -> tuple[bool, str]:
+def run_component_live_export(
+    report_path: str, output_file: str, intent: dict, component_keyword: str
+) -> tuple[bool, str]:
     script = Path(__file__).resolve().parent / "export_report_component_live.mjs"
     filters = intent.get("filters") or {}
     args = [
@@ -472,7 +553,9 @@ def _render_param_template(expr: object, filters: dict) -> str:
     return str(v)
 
 
-def select_component_binding(report_name: str, metric_hint: str, intent_metric: str, raw_query: str) -> dict | None:
+def select_component_binding(
+    report_name: str, metric_hint: str, intent_metric: str, raw_query: str
+) -> dict | None:
     metric_text = f"{metric_hint} {intent_metric} {raw_query}"
     for b in load_component_url_registry():
         report_match = str(b.get("report_match") or "").strip()
@@ -504,7 +587,11 @@ def build_component_url_from_binding(binding: dict, filters: dict) -> str | None
             continue
         params[key] = _render_param_template(expr, filters)
     from urllib.parse import quote
-    base = os.environ.get("FR_BASE_URL", os.environ.get("OPM_BASE_URL", "http://localhost:8075/webroot/decision"))
+
+    base = os.environ.get(
+        "FR_BASE_URL",
+        os.environ.get("OPM_BASE_URL", "http://localhost:8075/webroot/decision"),
+    )
     return (
         f"{base}?viewlet={quote(viewlet, safe='')}"
         f"&op={quote(op, safe='')}&__parameters__={quote(json.dumps(params, ensure_ascii=False), safe='')}"
@@ -542,7 +629,9 @@ def run_component_url_table_fetch(component_url: str) -> tuple[bool, dict | str]
     return True, payload
 
 
-def run_components_export_and_index(report_path: str, mirror_root: Path, limit: int = 0) -> tuple[bool, dict | str]:
+def run_components_export_and_index(
+    report_path: str, mirror_root: Path, limit: int = 0
+) -> tuple[bool, dict | str]:
     script = Path(__file__).resolve().parent / "export_components_and_index.py"
     args = [
         "python",
@@ -578,18 +667,25 @@ def run_components_export_and_index(report_path: str, mirror_root: Path, limit: 
     try:
         payload = json.loads(out or "{}")
     except Exception:
-        return False, f"components_export_and_index_json_parse_failed: {(out or '')[:400]}"
+        return (
+            False,
+            f"components_export_and_index_json_parse_failed: {(out or '')[:400]}",
+        )
     if not bool(payload.get("ok")):
         return False, payload
     return True, payload
 
 
 def _component_discovery_cache_file(report_path: str, mirror_root: Path) -> Path:
-    key = hashlib.md5(report_path.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
+    key = hashlib.md5(report_path.encode("utf-8"), usedforsecurity=False).hexdigest()[
+        :16
+    ]
     return mirror_root / "_components" / "_cache" / f"discover_{key}.json"
 
 
-def run_discover_components(report_path: str, mirror_root: Path, ttl_seconds: int = 21600) -> tuple[bool, list[dict] | str]:
+def run_discover_components(
+    report_path: str, mirror_root: Path, ttl_seconds: int = 21600
+) -> tuple[bool, list[dict] | str]:
     cache_file = _component_discovery_cache_file(report_path, mirror_root)
     try:
         if cache_file.exists():
@@ -631,7 +727,9 @@ def run_discover_components(report_path: str, mirror_root: Path, ttl_seconds: in
         return False, f"discover_components_json_parse_failed: {(out or '')[:400]}"
     try:
         cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        cache_file.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     except Exception:
         pass
     items = data.get("all") or []
@@ -640,7 +738,9 @@ def run_discover_components(report_path: str, mirror_root: Path, ttl_seconds: in
     return True, items
 
 
-def select_component_url_from_discovery(items: list[dict], metric_hint: str, intent_metric: str, raw_query: str) -> str | None:
+def select_component_url_from_discovery(
+    items: list[dict], metric_hint: str, intent_metric: str, raw_query: str
+) -> str | None:
     metric_text = f"{metric_hint} {intent_metric} {raw_query}"
     scored: list[tuple[int, str]] = []
     for it in items:
@@ -673,7 +773,9 @@ def select_component_url_from_discovery(items: list[dict], metric_hint: str, int
     return top_url or None
 
 
-def resolve_metric_with_filters(metric: str | None, columns: list[str], filters: dict) -> str | None:
+def resolve_metric_with_filters(
+    metric: str | None, columns: list[str], filters: dict
+) -> str | None:
     col = resolve_metric_column(metric, columns)
     if col:
         return col
@@ -718,7 +820,9 @@ def _extract_route_pairs(route_text: str) -> list[str]:
     return out
 
 
-def render_first_flight_bottom10_answer(rows: list[dict], report_name: str, source_path: str) -> tuple[str, list[str]]:
+def render_first_flight_bottom10_answer(
+    rows: list[dict], report_name: str, source_path: str
+) -> tuple[str, list[str]]:
     analysis_result = analyze_first_flight_bottom10(
         {},
         {"rows": rows},
@@ -731,7 +835,9 @@ def render_first_flight_bottom10_answer(rows: list[dict], report_name: str, sour
     return text, list(analysis_result.get("first_flight_routes") or [])
 
 
-def render_top_metric_flight_answer(source_path: str, report_name: str, metric_hint: str) -> tuple[str, dict | None]:
+def render_top_metric_flight_answer(
+    source_path: str, report_name: str, metric_hint: str
+) -> tuple[str, dict | None]:
     analysis_result = analyze_top_metric_flight(
         {"metric": metric_hint},
         {"file_path": source_path, "report_name": report_name},
@@ -741,7 +847,9 @@ def render_top_metric_flight_answer(source_path: str, report_name: str, metric_h
         {"metric": metric_hint},
         {"file_path": source_path, "report_name": report_name},
     )
-    return text, (analysis_result.get("best_item") if analysis_result.get("ok") else None)
+    return text, (
+        analysis_result.get("best_item") if analysis_result.get("ok") else None
+    )
 
 
 def is_fast_top_metric_flight_query(intent: dict) -> bool:
@@ -755,19 +863,33 @@ def is_fast_top_metric_flight_query(intent: dict) -> bool:
     )
 
 
-def run_fast_top_metric_flight_query(intent: dict, mirror_root: Path, profile_db_path: Path, catalog_db: Path, excel_index_db: Path | None) -> dict:
+def run_fast_top_metric_flight_query(
+    intent: dict,
+    mirror_root: Path,
+    profile_db_path: Path,
+    catalog_db: Path,
+    excel_index_db: Path | None,
+) -> dict:
     top = {
         "report_id": -11,
         "report_name": "航空集团前十后十航班",
-        "file_path": str(mirror_root / "航空板块经营报表" / "航空集团前十后十航班.xlsx"),
+        "file_path": str(
+            mirror_root / "航空板块经营报表" / "航空集团前十后十航班.xlsx"
+        ),
         "dir_path": "航空板块经营报表",
         "score": 0,
         "score_breakdown": {"fast_path": 1.0},
     }
     report_cpt = "doc/Fdjt/市场监督/航空集团前十后十航线.cpt"
-    query_hash = hashlib.md5(str(intent.get("raw_query") or "").encode("utf-8")).hexdigest()[:10]
-    live_file = Path(top["file_path"]).with_name(f"航空集团前十后十航班_live_{query_hash}.xlsx")
-    live_refresh_ok, live_refresh_msg = run_generic_live_export(report_cpt, str(live_file), intent)
+    query_hash = hashlib.md5(
+        str(intent.get("raw_query") or "").encode("utf-8")
+    ).hexdigest()[:10]
+    live_file = Path(top["file_path"]).with_name(
+        f"航空集团前十后十航班_live_{query_hash}.xlsx"
+    )
+    live_refresh_ok, live_refresh_msg = run_generic_live_export(
+        report_cpt, str(live_file), intent
+    )
     live_refresh_error = None if live_refresh_ok else live_refresh_msg
     writeback_msg = None
     if live_refresh_ok:
@@ -781,7 +903,9 @@ def run_fast_top_metric_flight_query(intent: dict, mirror_root: Path, profile_db
         if not ok_writeback:
             writeback_msg = msg_writeback
     source_path = str(live_file if live_file.exists() else Path(top["file_path"]))
-    answer_text, best_item = render_top_metric_flight_answer(source_path, str(top["report_name"]), str(intent.get("metric") or ""))
+    answer_text, best_item = render_top_metric_flight_answer(
+        source_path, str(top["report_name"]), str(intent.get("metric") or "")
+    )
     hit_ok = bool(best_item)
     record_profile_hit(
         profile_db_path,
@@ -869,11 +993,19 @@ def _to_float(v: object) -> float | None:
     return x
 
 
-def pick_best_airline_yoy(rows: list[dict], metric_hint: str, extreme: str) -> dict | None:
+def pick_best_airline_yoy(
+    rows: list[dict], metric_hint: str, extreme: str
+) -> dict | None:
     return pick_best_airline_yoy_v2(rows, metric_hint=metric_hint, extreme=extreme)
 
 
-def choose_candidate_by_local_fit(ranked: list[dict], intent: dict, user_scope_cfg: dict, user: str | None, probe_n: int = 8) -> dict:
+def choose_candidate_by_local_fit(
+    ranked: list[dict],
+    intent: dict,
+    user_scope_cfg: dict,
+    user: str | None,
+    probe_n: int = 8,
+) -> dict:
     best = ranked[0]
     best_score = -1
     filters = intent.get("filters") or {}
@@ -884,7 +1016,13 @@ def choose_candidate_by_local_fit(ranked: list[dict], intent: dict, user_scope_c
             cols = extracted.get("columns") or []
             rows = extracted.get("rows") or []
             metric_col = resolve_metric_with_filters(metric, cols, filters)
-            filtered = apply_filters(rows, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col)
+            filtered = apply_filters(
+                rows,
+                intent,
+                user_scope_cfg=user_scope_cfg,
+                user=user,
+                metric_col=metric_col,
+            )
             fit = 0
             if metric_col:
                 fit += 100
@@ -899,7 +1037,13 @@ def choose_candidate_by_local_fit(ranked: list[dict], intent: dict, user_scope_c
     return best
 
 
-def probe_candidates_for_hit(ranked: list[dict], intent: dict, user_scope_cfg: dict, user: str | None, limit: int = 6) -> dict | None:
+def probe_candidates_for_hit(
+    ranked: list[dict],
+    intent: dict,
+    user_scope_cfg: dict,
+    user: str | None,
+    limit: int = 6,
+) -> dict | None:
     filters = intent.get("filters") or {}
     metric = intent.get("metric")
     started = time.monotonic()
@@ -912,7 +1056,13 @@ def probe_candidates_for_hit(ranked: list[dict], intent: dict, user_scope_cfg: d
             cols = extracted.get("columns") or []
             rows = extracted.get("rows") or []
             metric_col = resolve_metric_with_filters(metric, cols, filters)
-            filtered = apply_filters(rows, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col)
+            filtered = apply_filters(
+                rows,
+                intent,
+                user_scope_cfg=user_scope_cfg,
+                user=user,
+                metric_col=metric_col,
+            )
             if metric_col and filtered:
                 return c
         except Exception:
@@ -926,7 +1076,9 @@ def probe_candidates_for_hit(ranked: list[dict], intent: dict, user_scope_cfg: d
             continue
         if (time.monotonic() - started) > budget:
             break
-        live_file = Path(str(c["file_path"])).with_name(f"{Path(str(c['file_path'])).stem}_live.xlsx")
+        live_file = Path(str(c["file_path"])).with_name(
+            f"{Path(str(c['file_path'])).stem}_live.xlsx"
+        )
         ok, _ = run_generic_live_export(report_cpt, str(live_file), intent)
         if not ok or (not live_file.exists()):
             continue
@@ -935,7 +1087,13 @@ def probe_candidates_for_hit(ranked: list[dict], intent: dict, user_scope_cfg: d
             cols2 = extracted2.get("columns") or []
             rows2 = extracted2.get("rows") or []
             metric_col2 = resolve_metric_with_filters(metric, cols2, filters)
-            filtered2 = apply_filters(rows2, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col2)
+            filtered2 = apply_filters(
+                rows2,
+                intent,
+                user_scope_cfg=user_scope_cfg,
+                user=user,
+                metric_col=metric_col2,
+            )
             if metric_col2 and filtered2:
                 return c
         except Exception:
@@ -974,7 +1132,9 @@ def load_candidates_in_dir(db_path: Path, dir_path: str, limit: int = 20) -> lis
     return out
 
 
-def merge_ranked_candidates(primary: list[dict], secondary: list[dict], top_n: int) -> list[dict]:
+def merge_ranked_candidates(
+    primary: list[dict], secondary: list[dict], top_n: int
+) -> list[dict]:
     merged: dict[str, dict] = {}
     for src in (primary, secondary):
         for c in src:
@@ -1012,26 +1172,56 @@ def run_query(
     intent = parse_query(query)
     profile_db_path = profile_db or default_profile_db()
     if is_fast_top_metric_flight_query(intent):
-        return run_fast_top_metric_flight_query(intent, mirror_root=mirror_root, profile_db_path=profile_db_path, catalog_db=db_path, excel_index_db=excel_index_db or default_excel_index_db(mirror_root))
+        return run_fast_top_metric_flight_query(
+            intent,
+            mirror_root=mirror_root,
+            profile_db_path=profile_db_path,
+            catalog_db=db_path,
+            excel_index_db=excel_index_db or default_excel_index_db(mirror_root),
+        )
     filters = intent.get("filters") or {}
     snapshot_hit = lookup_profit_yoy_snapshot(intent)
     metric = str(intent.get("metric") or "")
     known_metrics = {"客座率", "价格", "余票", "单机边际贡献"}
-    top_n = 30 if (filters.get("segment_from") and filters.get("segment_to")) or filters.get("depart_time") or (metric and metric not in known_metrics) or (metric == "单机边际贡献") else 8
+    top_n = (
+        30
+        if (filters.get("segment_from") and filters.get("segment_to"))
+        or filters.get("depart_time")
+        or (metric and metric not in known_metrics)
+        or (metric == "单机边际贡献")
+        else 8
+    )
     ranked_catalog = rank_candidates(intent, db_path, top_n=top_n)
     excel_db = excel_index_db or default_excel_index_db(mirror_root)
-    ranked_excel = rank_candidates_from_excel_index(intent, excel_db, mirror_root, top_n=max(top_n, 30)) if excel_db else []
+    ranked_excel = (
+        rank_candidates_from_excel_index(
+            intent, excel_db, mirror_root, top_n=max(top_n, 30)
+        )
+        if excel_db
+        else []
+    )
     ranked = merge_ranked_candidates(ranked_catalog, ranked_excel, top_n=max(top_n, 30))
     ranked = apply_profile_boost(ranked, profile_db_path, intent)
     if not ranked:
-        return {"ok": False, "reason": "no_report_match", "intent": intent, "candidates": []}
-    user_scope_cfg = load_user_scope(user_scope_path) if user_scope_path.exists() else {}
+        return {
+            "ok": False,
+            "reason": "no_report_match",
+            "intent": intent,
+            "candidates": [],
+        }
+    user_scope_cfg = (
+        load_user_scope(user_scope_path) if user_scope_path.exists() else {}
+    )
     if bool((intent.get("filters") or {}).get("compare_scope") == "airline_yoy"):
         if str(filters.get("report_variant") or "") == "adjusted_profit_overview":
             top = {
                 "report_id": -3,
                 "report_name": "航空集团收入利润概览（调整后）",
-                "file_path": str(mirror_root / "航空板块经营报表" / "航空集团收入利润概览（调整后）.xlsx"),
+                "file_path": str(
+                    mirror_root
+                    / "航空板块经营报表"
+                    / "航空集团收入利润概览（调整后）.xlsx"
+                ),
                 "dir_path": "航空板块经营报表",
                 "score": 0,
                 "score_breakdown": {},
@@ -1040,7 +1230,9 @@ def run_query(
             top = {
                 "report_id": -2,
                 "report_name": "航空集团经营提升分析",
-                "file_path": str(mirror_root / "航空板块经营报表" / "航空集团经营提升分析.xlsx"),
+                "file_path": str(
+                    mirror_root / "航空板块经营报表" / "航空集团经营提升分析.xlsx"
+                ),
                 "dir_path": "航空板块经营报表",
                 "score": 0,
                 "score_breakdown": {},
@@ -1049,20 +1241,36 @@ def run_query(
         top = choose_top_candidate(ranked, intent)
     ordered = [top] + [x for x in ranked if x != top]
     if metric and metric not in known_metrics:
-        probed = probe_candidates_for_hit(ordered, intent, user_scope_cfg=user_scope_cfg, user=user, limit=6)
+        probed = probe_candidates_for_hit(
+            ordered, intent, user_scope_cfg=user_scope_cfg, user=user, limit=6
+        )
         if probed:
             top = probed
     metric = str(intent.get("metric") or "")
-    report_cpt = find_report_cpt_path(str(top.get("report_name") or ""), str(top.get("file_path") or ""))
+    report_cpt = find_report_cpt_path(
+        str(top.get("report_name") or ""), str(top.get("file_path") or "")
+    )
     if (not report_cpt) and ("经营提升分析" in str(top.get("report_name") or "")):
-        report_cpt = "doc/Fdjt/marketOperSup/航空集团经营提升分析/航空集团经营提升分析.frm"
-    if (not report_cpt) and ("收入利润概览（调整后）" in str(top.get("report_name") or "")):
+        report_cpt = (
+            "doc/Fdjt/marketOperSup/航空集团经营提升分析/航空集团经营提升分析.frm"
+        )
+    if (not report_cpt) and (
+        "收入利润概览（调整后）" in str(top.get("report_name") or "")
+    ):
         report_cpt = "doc/frm/航空集团收入利润报表/航空集团收入利润概览（调整后）.frm"
-    query_hash = hashlib.md5(str(intent.get("raw_query") or "").encode("utf-8")).hexdigest()[:10]
-    generic_live_file = Path(str(top["file_path"])).with_name(f"{Path(str(top['file_path'])).stem}_live.xlsx")
-    future_live_file = Path(str(top["file_path"])).with_name(f"{Path(str(top['file_path'])).stem}_live_{query_hash}.xlsx")
+    query_hash = hashlib.md5(
+        str(intent.get("raw_query") or "").encode("utf-8")
+    ).hexdigest()[:10]
+    generic_live_file = Path(str(top["file_path"])).with_name(
+        f"{Path(str(top['file_path'])).stem}_live.xlsx"
+    )
+    future_live_file = Path(str(top["file_path"])).with_name(
+        f"{Path(str(top['file_path'])).stem}_live_{query_hash}.xlsx"
+    )
     freshness_force_live = should_force_live_refresh_by_freshness(
-        Path(str(top.get("file_path") or "")) if str(top.get("file_path") or "").strip() else None,
+        Path(str(top.get("file_path") or ""))
+        if str(top.get("file_path") or "").strip()
+        else None,
         db_path,
         excel_db,
         max_age_seconds=3600,
@@ -1071,11 +1279,24 @@ def run_query(
         used_live_refresh = True
         live_refresh_error = None
         extreme = str(filters.get("extreme") or "best")
-        metric_hint = "净利润" if ("净利润" in str(metric or "") or "净利润" in str(intent.get("raw_query") or "")) else "单机边际贡献"
+        metric_hint = (
+            "净利润"
+            if (
+                "净利润" in str(metric or "")
+                or "净利润" in str(intent.get("raw_query") or "")
+            )
+            else "单机边际贡献"
+        )
         base_name = Path(str(top.get("file_path") or "")).stem or "航空集团经营提升分析"
-        comp_live_file = (mirror_root / "航空板块经营报表" / f"{base_name}_{metric_hint}_component_live.xlsx")
+        comp_live_file = (
+            mirror_root
+            / "航空板块经营报表"
+            / f"{base_name}_{metric_hint}_component_live.xlsx"
+        )
         if report_cpt:
-            live_refresh_ok, live_refresh_msg = run_component_live_export(report_cpt, str(comp_live_file), intent, component_keyword=metric_hint)
+            live_refresh_ok, live_refresh_msg = run_component_live_export(
+                report_cpt, str(comp_live_file), intent, component_keyword=metric_hint
+            )
         else:
             live_refresh_ok, live_refresh_msg = False, "missing_report_cpt_path"
         source_path = comp_live_file
@@ -1084,7 +1305,9 @@ def run_query(
             try:
                 if "收入利润概览（调整后）" in str(top.get("report_name") or ""):
                     source_path = comp_live_file
-                    rows_for_rank = extract_adjusted_profit_overview_rows(comp_live_file)
+                    rows_for_rank = extract_adjusted_profit_overview_rows(
+                        comp_live_file
+                    )
                 else:
                     rows_for_rank = extract_table(comp_live_file).get("rows") or []
             except Exception:
@@ -1104,9 +1327,13 @@ def run_query(
                 intent_metric=str(metric or ""),
                 raw_query=str(intent.get("raw_query") or ""),
             )
-            component_url = build_component_url_from_binding(binding, filters) if binding else None
+            component_url = (
+                build_component_url_from_binding(binding, filters) if binding else None
+            )
             if component_url:
-                ok_component_url, payload_or_err = run_component_url_table_fetch(component_url)
+                ok_component_url, payload_or_err = run_component_url_table_fetch(
+                    component_url
+                )
                 if ok_component_url:
                     payload = payload_or_err if isinstance(payload_or_err, dict) else {}
                     rows_for_rank = payload.get("rows") or []
@@ -1117,7 +1344,9 @@ def run_query(
                 elif not live_refresh_error:
                     live_refresh_error = str(payload_or_err)
         if not rows_for_rank and report_cpt and str(report_cpt).endswith(".frm"):
-            ok_discover, items_or_err = run_discover_components(str(report_cpt), mirror_root=mirror_root)
+            ok_discover, items_or_err = run_discover_components(
+                str(report_cpt), mirror_root=mirror_root
+            )
             if ok_discover:
                 items = items_or_err if isinstance(items_or_err, list) else []
                 auto_url = select_component_url_from_discovery(
@@ -1129,7 +1358,9 @@ def run_query(
                 if auto_url:
                     ok_auto, payload_or_err = run_component_url_table_fetch(auto_url)
                     if ok_auto:
-                        payload = payload_or_err if isinstance(payload_or_err, dict) else {}
+                        payload = (
+                            payload_or_err if isinstance(payload_or_err, dict) else {}
+                        )
                         rows_for_rank = payload.get("rows") or []
                         source_path = auto_url
                         if rows_for_rank:
@@ -1140,9 +1371,13 @@ def run_query(
             elif not live_refresh_error:
                 live_refresh_error = str(items_or_err)
         if (not rows_for_rank) and report_cpt and str(report_cpt).endswith(".frm"):
-            ok_refresh, payload_or_err = run_components_export_and_index(str(report_cpt), mirror_root=mirror_root, limit=0)
+            ok_refresh, payload_or_err = run_components_export_and_index(
+                str(report_cpt), mirror_root=mirror_root, limit=0
+            )
             if ok_refresh:
-                ok_discover2, items_or_err2 = run_discover_components(str(report_cpt), mirror_root=mirror_root, ttl_seconds=60)
+                ok_discover2, items_or_err2 = run_discover_components(
+                    str(report_cpt), mirror_root=mirror_root, ttl_seconds=60
+                )
                 if ok_discover2:
                     items2 = items_or_err2 if isinstance(items_or_err2, list) else []
                     auto_url2 = select_component_url_from_discovery(
@@ -1152,9 +1387,15 @@ def run_query(
                         raw_query=str(intent.get("raw_query") or ""),
                     )
                     if auto_url2:
-                        ok_auto2, payload_or_err2 = run_component_url_table_fetch(auto_url2)
+                        ok_auto2, payload_or_err2 = run_component_url_table_fetch(
+                            auto_url2
+                        )
                         if ok_auto2:
-                            payload2 = payload_or_err2 if isinstance(payload_or_err2, dict) else {}
+                            payload2 = (
+                                payload_or_err2
+                                if isinstance(payload_or_err2, dict)
+                                else {}
+                            )
                             rows_for_rank = payload2.get("rows") or []
                             source_path = auto_url2
                             if rows_for_rank:
@@ -1166,12 +1407,14 @@ def run_query(
                     live_refresh_error = str(items_or_err2)
             elif not live_refresh_error:
                 live_refresh_error = str(payload_or_err)
-        ranked = pick_best_airline_yoy(rows_for_rank, metric_hint=metric_hint, extreme=extreme)
+        ranked = pick_best_airline_yoy(
+            rows_for_rank, metric_hint=metric_hint, extreme=extreme
+        )
         if ranked:
             yoy_text = f"{ranked['yoy']:.2f}%"
             answer_text = (
                 f"命中报表: {top['report_name']}\n"
-                f"统计区间: {str(filters.get('date_start') or '-') } 到 {str(filters.get('date_end') or '-')}\n"
+                f"统计区间: {str(filters.get('date_start') or '-')} 到 {str(filters.get('date_end') or '-')}\n"
                 f"同比口径: {ranked['yoy_col']}\n"
                 f"{'表现最好' if extreme != 'worst' else '表现最差'}: {ranked['airline']}\n"
                 f"排名: {ranked['rank']}/{ranked['total']}\n"
@@ -1253,9 +1496,13 @@ def run_query(
         used_live_refresh = True
         live_file = Path(str(top["file_path"])).with_name("单机边际贡献_live.xlsx")
         if report_cpt:
-            live_refresh_ok, live_refresh_msg = run_generic_live_export(report_cpt, str(live_file), intent)
+            live_refresh_ok, live_refresh_msg = run_generic_live_export(
+                report_cpt, str(live_file), intent
+            )
         else:
-            live_refresh_ok, live_refresh_msg = run_fast_single_margin_export(str(live_file))
+            live_refresh_ok, live_refresh_msg = run_fast_single_margin_export(
+                str(live_file)
+            )
         live_refresh_error = None if live_refresh_ok else live_refresh_msg
 
         source_path = live_file if live_file.exists() else Path(str(top["file_path"]))
@@ -1303,9 +1550,13 @@ def run_query(
 
     extracted = extract_table(Path(top["file_path"]))
     source_path = str(top["file_path"])
-    metric_col = resolve_metric_with_filters(intent.get("metric"), extracted.get("columns") or [], filters)
+    metric_col = resolve_metric_with_filters(
+        intent.get("metric"), extracted.get("columns") or [], filters
+    )
     rows = extracted.get("rows") or []
-    filtered = apply_filters(rows, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col)
+    filtered = apply_filters(
+        rows, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col
+    )
     relaxed_filters_applied: list[str] = []
 
     used_live_refresh = False
@@ -1319,21 +1570,36 @@ def run_query(
         or filters.get("extreme")
         or freshness_force_live
     )
-    if force_live_refresh or needs_live_refresh(extracted, metric_col, filtered_count=len(filtered)):
+    if force_live_refresh or needs_live_refresh(
+        extracted, metric_col, filtered_count=len(filtered)
+    ):
         used_live_refresh = True
         if top["report_name"] == "未来航班客座率票价分析":
-            live_refresh_ok, live_refresh_msg = run_fast_future_kzl_export(intent, output_file=str(future_live_file))
+            live_refresh_ok, live_refresh_msg = run_fast_future_kzl_export(
+                intent, output_file=str(future_live_file)
+            )
         elif report_cpt:
-            live_refresh_ok, live_refresh_msg = run_generic_live_export(report_cpt, str(generic_live_file), intent)
+            live_refresh_ok, live_refresh_msg = run_generic_live_export(
+                report_cpt, str(generic_live_file), intent
+            )
         else:
             live_refresh_ok, live_refresh_msg = False, "missing_report_cpt_path"
         if not live_refresh_ok:
-            live_refresh_ok, live_refresh_msg = run_live_refresh(top["report_name"], overwrite="always")
+            live_refresh_ok, live_refresh_msg = run_live_refresh(
+                top["report_name"], overwrite="always"
+            )
         if live_refresh_ok:
             source_path = str(
-                future_live_file if top["report_name"] == "未来航班客座率票价分析" and future_live_file.exists()
-                else Path(top["file_path"]) if top["report_name"] == "未来航班客座率票价分析"
-                else (generic_live_file if generic_live_file.exists() else Path(top["file_path"]))
+                future_live_file
+                if top["report_name"] == "未来航班客座率票价分析"
+                and future_live_file.exists()
+                else Path(top["file_path"])
+                if top["report_name"] == "未来航班客座率票价分析"
+                else (
+                    generic_live_file
+                    if generic_live_file.exists()
+                    else Path(top["file_path"])
+                )
             )
             if generic_live_file.exists():
                 persist_refreshed_output(
@@ -1344,15 +1610,31 @@ def run_query(
                     excel_index_db=excel_db,
                 )
             extracted = extract_table(source_path)
-            metric_col = resolve_metric_with_filters(intent.get("metric"), extracted.get("columns") or [], filters)
+            metric_col = resolve_metric_with_filters(
+                intent.get("metric"), extracted.get("columns") or [], filters
+            )
             rows = extracted.get("rows") or []
-            filtered = apply_filters(rows, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col)
+            filtered = apply_filters(
+                rows,
+                intent,
+                user_scope_cfg=user_scope_cfg,
+                user=user,
+                metric_col=metric_col,
+            )
         else:
             live_refresh_error = live_refresh_msg
 
-    if ("前十后十" in str(top.get("report_name") or "")) and bool(filters.get("first_flight")) and str(filters.get("rank_scope") or "") == "后十":
-        source_path = str(generic_live_file if generic_live_file.exists() else Path(top["file_path"]))
-        answer_text, first_flight_routes = render_first_flight_bottom10_answer(rows, str(top["report_name"]), source_path)
+    if (
+        ("前十后十" in str(top.get("report_name") or ""))
+        and bool(filters.get("first_flight"))
+        and str(filters.get("rank_scope") or "") == "后十"
+    ):
+        source_path = str(
+            generic_live_file if generic_live_file.exists() else Path(top["file_path"])
+        )
+        answer_text, first_flight_routes = render_first_flight_bottom10_answer(
+            rows, str(top["report_name"]), source_path
+        )
         hit_ok = len(first_flight_routes) > 0
         record_profile_hit(
             profile_db_path,
@@ -1381,9 +1663,17 @@ def run_query(
             "answer_text": answer_text,
         }
 
-    if ("前十后十" in str(top.get("report_name") or "")) and str(filters.get("extreme") or "") == "best" and str(intent.get("metric") or "") in {"小时边际贡献", "总边贡"}:
-        source_path = str(generic_live_file if generic_live_file.exists() else Path(top["file_path"]))
-        answer_text, best_item = render_top_metric_flight_answer(source_path, str(top["report_name"]), str(intent.get("metric") or ""))
+    if (
+        ("前十后十" in str(top.get("report_name") or ""))
+        and str(filters.get("extreme") or "") == "best"
+        and str(intent.get("metric") or "") in {"小时边际贡献", "总边贡"}
+    ):
+        source_path = str(
+            generic_live_file if generic_live_file.exists() else Path(top["file_path"])
+        )
+        answer_text, best_item = render_top_metric_flight_answer(
+            source_path, str(top["report_name"]), str(intent.get("metric") or "")
+        )
         hit_ok = bool(best_item)
         record_profile_hit(
             profile_db_path,
@@ -1414,11 +1704,26 @@ def run_query(
             payload["best_item"] = best_item
         return payload
 
-    if str(top.get("report_name") or "") == "未来航班客座率票价分析" and str(filters.get("analysis_mode") or "") == "competition_review":
-        analysis_file = Path(str(top["file_path"])).with_name("未来航班客座率票价分析_competition_review.xlsx")
-        ok_analysis_export, analysis_msg = run_fast_future_kzl_export(intent, output_file=str(analysis_file))
+    if (
+        str(top.get("report_name") or "") == "未来航班客座率票价分析"
+        and str(filters.get("analysis_mode") or "") == "competition_review"
+    ):
+        analysis_file = Path(str(top["file_path"])).with_name(
+            "未来航班客座率票价分析_competition_review.xlsx"
+        )
+        ok_analysis_export, analysis_msg = run_fast_future_kzl_export(
+            intent, output_file=str(analysis_file)
+        )
         analysis_rows = rows
-        source_path = str(analysis_file if analysis_file.exists() else (generic_live_file if generic_live_file.exists() else Path(top["file_path"])))
+        source_path = str(
+            analysis_file
+            if analysis_file.exists()
+            else (
+                generic_live_file
+                if generic_live_file.exists()
+                else Path(top["file_path"])
+            )
+        )
         if ok_analysis_export and analysis_file.exists():
             try:
                 analysis_rows = extract_table(analysis_file).get("rows") or []
@@ -1426,8 +1731,19 @@ def run_query(
                 analysis_rows = rows
         elif live_refresh_error is None:
             live_refresh_error = analysis_msg
-        analysis_renderer = get_analysis_renderer(str(top.get("report_name") or ""), analysis_mode=str(filters.get("analysis_mode") or ""))
-        answer_text = analysis_renderer(analysis_rows, str(top["report_name"]), source_path, filters) if analysis_renderer else render_future_competition_review(analysis_rows, str(top["report_name"]), source_path, filters)
+        analysis_renderer = get_analysis_renderer(
+            str(top.get("report_name") or ""),
+            analysis_mode=str(filters.get("analysis_mode") or ""),
+        )
+        answer_text = (
+            analysis_renderer(
+                analysis_rows, str(top["report_name"]), source_path, filters
+            )
+            if analysis_renderer
+            else render_future_competition_review(
+                analysis_rows, str(top["report_name"]), source_path, filters
+            )
+        )
         if live_refresh_error:
             answer_text = f"{answer_text}\n实时刷新失败: {live_refresh_error}"
         return {
@@ -1447,7 +1763,13 @@ def run_query(
         }
 
     if metric_col and len(filtered) == 0:
-        for keys in (["flight_date"], ["company"], ["aircraft_type"], ["flight_date", "company"], ["flight_date", "aircraft_type"]):
+        for keys in (
+            ["flight_date"],
+            ["company"],
+            ["aircraft_type"],
+            ["flight_date", "company"],
+            ["flight_date", "aircraft_type"],
+        ):
             intent_relaxed = copy.deepcopy(intent)
             f2 = dict(intent_relaxed.get("filters") or {})
             changed = False
@@ -1458,17 +1780,29 @@ def run_query(
             if not changed:
                 continue
             intent_relaxed["filters"] = f2
-            filtered_relaxed = apply_filters(rows, intent_relaxed, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col)
+            filtered_relaxed = apply_filters(
+                rows,
+                intent_relaxed,
+                user_scope_cfg=user_scope_cfg,
+                user=user,
+                metric_col=metric_col,
+            )
             if filtered_relaxed:
                 filtered = filtered_relaxed
                 relaxed_filters_applied = keys
                 break
 
     # Unknown metric fallback: probe reports in the same directory and pick first executable hit.
-    if False and (metric and metric not in known_metrics) and (not metric_col or len(filtered) == 0):
+    if (
+        False
+        and (metric and metric not in known_metrics)
+        and (not metric_col or len(filtered) == 0)
+    ):
         probe_started = time.monotonic()
         probe_budget_sec = 45.0
-        same_dir = load_candidates_in_dir(db_path, str(top.get("dir_path") or ""), limit=20)
+        same_dir = load_candidates_in_dir(
+            db_path, str(top.get("dir_path") or ""), limit=20
+        )
         same_dir = sorted(same_dir, key=lambda x: int(x.get("size_bytes") or 0))
         unresolved: list[dict] = []
         for cand in same_dir[:8]:
@@ -1478,8 +1812,16 @@ def run_query(
                 ext_local = extract_table(Path(cand["file_path"]))
                 cols_local = ext_local.get("columns") or []
                 rows_local = ext_local.get("rows") or []
-                m_local = resolve_metric_with_filters(intent.get("metric"), cols_local, filters)
-                f_local = apply_filters(rows_local, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=m_local)
+                m_local = resolve_metric_with_filters(
+                    intent.get("metric"), cols_local, filters
+                )
+                f_local = apply_filters(
+                    rows_local,
+                    intent,
+                    user_scope_cfg=user_scope_cfg,
+                    user=user,
+                    metric_col=m_local,
+                )
                 if m_local and f_local:
                     top = cand
                     extracted = ext_local
@@ -1492,6 +1834,7 @@ def run_query(
             unresolved.append(cand)
         if not metric_col or len(filtered) == 0:
             mt = str(metric or "")
+
             def _cand_priority(c: dict) -> int:
                 rn = str(c.get("report_name") or "")
                 score = 0
@@ -1499,25 +1842,43 @@ def run_query(
                     score += 5
                 if "运力" in rn and "运力" in mt:
                     score += 5
-                overlap = len({ch for ch in rn if "\u4e00" <= ch <= "\u9fff"} & {ch for ch in mt if "\u4e00" <= ch <= "\u9fff"})
+                overlap = len(
+                    {ch for ch in rn if "\u4e00" <= ch <= "\u9fff"}
+                    & {ch for ch in mt if "\u4e00" <= ch <= "\u9fff"}
+                )
                 score += overlap
                 return -score
+
             for cand in sorted(unresolved, key=_cand_priority)[:3]:
                 if (time.monotonic() - probe_started) > probe_budget_sec:
                     break
-                rpt_cpt = find_report_cpt_path(str(cand.get("report_name") or ""), str(cand.get("file_path") or ""))
+                rpt_cpt = find_report_cpt_path(
+                    str(cand.get("report_name") or ""), str(cand.get("file_path") or "")
+                )
                 if not rpt_cpt:
                     continue
-                cand_live = Path(str(cand["file_path"])).with_name(f"{Path(str(cand['file_path'])).stem}_live.xlsx")
-                ok_probe, _msg_probe = run_generic_live_export(rpt_cpt, str(cand_live), intent)
+                cand_live = Path(str(cand["file_path"])).with_name(
+                    f"{Path(str(cand['file_path'])).stem}_live.xlsx"
+                )
+                ok_probe, _msg_probe = run_generic_live_export(
+                    rpt_cpt, str(cand_live), intent
+                )
                 if not ok_probe or (not cand_live.exists()):
                     continue
                 try:
                     ext_live = extract_table(cand_live)
                     cols_live = ext_live.get("columns") or []
                     rows_live = ext_live.get("rows") or []
-                    m_live = resolve_metric_with_filters(intent.get("metric"), cols_live, filters)
-                    f_live = apply_filters(rows_live, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=m_live)
+                    m_live = resolve_metric_with_filters(
+                        intent.get("metric"), cols_live, filters
+                    )
+                    f_live = apply_filters(
+                        rows_live,
+                        intent,
+                        user_scope_cfg=user_scope_cfg,
+                        user=user,
+                        metric_col=m_live,
+                    )
                     if m_live and f_live:
                         top = cand
                         extracted = ext_live
@@ -1569,15 +1930,22 @@ def run_query(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Natural-language OPM metric query entrypoint.")
+    parser = argparse.ArgumentParser(
+        description="Natural-language OPM metric query entrypoint."
+    )
     parser.add_argument("query", help="Natural-language query")
     parser.add_argument("--user", help="User id for owner scope resolution")
     parser.add_argument("--mirror-root", default=str(default_mirror_root()))
     parser.add_argument("--db", default=str(default_catalog_db()))
     parser.add_argument("--excel-index", help="Path to excel_index.db (optional)")
     parser.add_argument("--profile-db", help="Path to report_profiles.db (optional)")
-    parser.add_argument("--user-scope", default=str(default_mirror_root() / "search_index" / "user_scope.yaml"))
-    parser.add_argument("--json", action="store_true", help="Print JSON result instead of text")
+    parser.add_argument(
+        "--user-scope",
+        default=str(default_mirror_root() / "search_index" / "user_scope.yaml"),
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Print JSON result instead of text"
+    )
     args = parser.parse_args()
 
     result = run_query(

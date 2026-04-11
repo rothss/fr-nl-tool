@@ -45,14 +45,21 @@ def _safe_name(s: str) -> str:
 
 def _build_component_url(item: dict) -> str:
     import os
+
     raw = str(item.get("raw_url") or "").strip()
     if raw:
         return raw
     viewlet = str(item.get("viewlet") or "").strip()
     op = str(item.get("op") or "form_adaptive").strip() or "form_adaptive"
     from urllib.parse import quote
-    base = os.environ.get("FR_BASE_URL", os.environ.get("OPM_BASE_URL", "http://localhost:8075/webroot/decision"))
-    return f"{base}/view/report?viewlet={quote(viewlet, safe='')}&op={quote(op, safe='')}"
+
+    base = os.environ.get(
+        "FR_BASE_URL",
+        os.environ.get("OPM_BASE_URL", "http://localhost:8075/webroot/decision"),
+    )
+    return (
+        f"{base}/view/report?viewlet={quote(viewlet, safe='')}&op={quote(op, safe='')}"
+    )
 
 
 def _pick_components(discovered: dict) -> list[dict]:
@@ -102,34 +109,74 @@ def _write_xlsx(path: Path, rows: list[dict]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Discover report components, export each to xlsx, and update sqlite index.")
-    parser.add_argument("--report-path", required=True, help="FR frm report path, e.g. doc/Fdjt/.../xxx.frm")
+    parser = argparse.ArgumentParser(
+        description="Discover report components, export each to xlsx, and update sqlite index."
+    )
+    parser.add_argument(
+        "--report-path",
+        required=True,
+        help="FR frm report path, e.g. doc/Fdjt/.../xxx.frm",
+    )
     parser.add_argument("--mirror-root", default=str(default_mirror_root()))
     parser.add_argument("--output-dir", help="Where to place component xlsx files")
     parser.add_argument("--excel-db", help="Path to excel_index.db")
     parser.add_argument("--discover-wait-ms", type=int, default=30000)
-    parser.add_argument("--limit", type=int, default=0, help="Max components to export, 0 means all")
+    parser.add_argument(
+        "--limit", type=int, default=0, help="Max components to export, 0 means all"
+    )
     parser.add_argument("--skip-index", action="store_true")
     args = parser.parse_args()
 
     mirror_root = Path(args.mirror_root)
-    excel_db = Path(args.excel_db) if args.excel_db else (default_excel_index_db(mirror_root) or (mirror_root / "search_index" / "excel_index.db"))
+    excel_db = (
+        Path(args.excel_db)
+        if args.excel_db
+        else (
+            default_excel_index_db(mirror_root)
+            or (mirror_root / "search_index" / "excel_index.db")
+        )
+    )
     report_key = _safe_name(Path(args.report_path).stem)
-    output_dir = Path(args.output_dir) if args.output_dir else (mirror_root / "_components" / report_key)
+    output_dir = (
+        Path(args.output_dir)
+        if args.output_dir
+        else (mirror_root / "_components" / report_key)
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    discover_js = Path(__file__).resolve().parent / "discover_components_from_network.mjs"
+    discover_js = (
+        Path(__file__).resolve().parent / "discover_components_from_network.mjs"
+    )
     ok_discover, discover_out = _run(
-        ["node", str(discover_js), "--report-path", args.report_path, "--wait-ms", str(args.discover_wait_ms)],
+        [
+            "node",
+            str(discover_js),
+            "--report-path",
+            args.report_path,
+            "--wait-ms",
+            str(args.discover_wait_ms),
+        ],
         timeout=max(120, int(args.discover_wait_ms / 1000) + 90),
     )
     if not ok_discover:
-        print(json.dumps({"ok": False, "stage": "discover", "error": discover_out}, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"ok": False, "stage": "discover", "error": discover_out},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
     try:
         discovered = json.loads(discover_out)
     except Exception:
-        print(json.dumps({"ok": False, "stage": "discover_parse", "error": discover_out[:1000]}, ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                {"ok": False, "stage": "discover_parse", "error": discover_out[:1000]},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
 
     components = _pick_components(discovered)
@@ -142,7 +189,10 @@ def main() -> None:
     for idx, comp in enumerate(components, start=1):
         viewlet = str(comp.get("viewlet") or "")
         url = _build_component_url(comp)
-        ok_fetch, fetch_out = _run(["node", str(fetch_js), "--component-url", url, "--wait-ms", "5000"], timeout=120)
+        ok_fetch, fetch_out = _run(
+            ["node", str(fetch_js), "--component-url", url, "--wait-ms", "5000"],
+            timeout=120,
+        )
         if not ok_fetch:
             failed.append({"viewlet": viewlet, "reason": fetch_out})
             continue
@@ -169,9 +219,25 @@ def main() -> None:
 
     index_result = None
     if not args.skip_index:
-        build_index_py = Path(r"C:\Users\ZhuanZ\finereport-search\tools\excel-search-sqlite\scripts\build_index.py")
+        import os
+
+        build_index_env = os.environ.get("FR_BUILD_INDEX_PY", "")
+        if build_index_env:
+            build_index_py = Path(build_index_env)
+            if not build_index_py.is_absolute():
+                build_index_py = Path(__file__).parent.parent / build_index_env
+        else:
+            build_index_py = Path(__file__).parent.parent / "scripts" / "build_index.py"
         ok_idx, idx_out = _run(
-            ["python", str(build_index_py), "--root", str(mirror_root), "--db", str(excel_db), "--incremental"],
+            [
+                "python",
+                str(build_index_py),
+                "--root",
+                str(mirror_root),
+                "--db",
+                str(excel_db),
+                "--incremental",
+            ],
             timeout=3600,
         )
         index_result = {"ok": ok_idx, "output": idx_out[-4000:]}
