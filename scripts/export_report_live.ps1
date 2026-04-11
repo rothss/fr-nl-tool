@@ -2,19 +2,22 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$ReportName,
   [string]$IncludeRootName = "包干航线",
-  [string]$OpmSkillRoot = "C:\Users\ZhuanZ\.codex\skills\opm-incremental-download",
-  [string]$EdgeCdpUrl = "http://127.0.0.1:9333",
-  [string]$EdgeProfileDir = "C:\Users\ZhuanZ\opm_edge_profile_nlquery",
+  [string]$OpmSkillRoot = "C:\Users\Zhuann\Z\.codex\skills\opm-incremental-download",
+  [string]$EdgeCdpUrl = $(if ($env:FR_CDP_URL) { $env:FR_CDP_URL } elseif ($env:OPM_EDGE_CDP_URL) { $env:OPM_EDGE_CDP_URL } else { "http://127.0.0.1:9222" }),
+  [string]$EdgeProfileDir = "C:\Users\Zhuann\Z\opm_edge_profile_nlquery",
   [string]$FallbackEdgeCdpUrl = "http://127.0.0.1:9222",
-  [string]$FallbackEdgeProfileDir = "C:\Users\ZhuanZ\opm_edge_profile",
-  [string]$OutputRoot = "C:\Users\ZhuanZ\opm_mirror",
-  [string]$BatchRoot = "C:\Users\ZhuanZ\opm_batch",
+  [string]$FallbackEdgeProfileDir = "C:\Users\Zhuann\Z\opm_edge_profile",
+  [string]$OutputRoot = $(if ($env:FR_MIRROR_ROOT) { $env:FR_MIRROR_ROOT } elseif ($env:OPM_MIRROR_ROOT) { $env:OPM_MIRROR_ROOT } else { ".\fr_mirror" }),
+  [string]$BatchRoot = $(if ($env:FR_BATCH_ROOT) { $env:FR_BATCH_ROOT } elseif ($env:OPM_BATCH_ROOT) { $env:OPM_BATCH_ROOT } else { ".\fr_batch" }),
   [ValidateSet("never","if_missing","always")]
   [string]$Overwrite = "always",
-  [string]$Token = $(if ($env:OPM_FINE_AUTH_TOKEN) { $env:OPM_FINE_AUTH_TOKEN } else { "" }),
+  [string]$Token = $(if ($env:FR_AUTH_TOKEN) { $env:FR_AUTH_TOKEN } elseif ($env:OPM_FINE_AUTH_TOKEN) { $env:OPM_FINE_AUTH_TOKEN } else { "" }),
   [string]$CasTicket = $(if ($env:OPM_CAS_TICKET) { $env:OPM_CAS_TICKET } else { "" }),
   [string]$FineRemember = "-1"
 )
+
+# FR_BASE_URL for FineReport server (used in fallback start URL)
+$env:FR_BASE_URL = if ($env:FR_BASE_URL) { $env:FR_BASE_URL } elseif ($env:OPM_BASE_URL) { $env:OPM_BASE_URL } else { "http://localhost:8075/webroot/decision" }
 
 $ErrorActionPreference = "Stop"
 $cdpVersionUrl = ($EdgeCdpUrl.TrimEnd('/')) + "/json/version/"
@@ -49,7 +52,7 @@ function Ensure-EdgeCdpReady {
   $edgeStart = Join-Path $Root "scripts\start-opm-edge.ps1"
   if (-not (Test-Path $edgeStart)) { return }
   Write-Host "CDP endpoint not ready. Starting fixed-profile Edge..."
-  & pwsh -NoProfile -File $edgeStart -EdgeProfileDir $ProfileDir -RemoteDebugPort $Port -StartUrl "https://opm.hnair.net/webroot/decision"
+  & pwsh -NoProfile -File $edgeStart -EdgeProfileDir $ProfileDir -RemoteDebugPort $Port -StartUrl $env:FR_BASE_URL
   Start-Sleep -Seconds 3
 }
 
@@ -86,9 +89,10 @@ if ($downloadExitCode -ne 0) {
   $edgeStart = Join-Path $OpmSkillRoot "scripts\start-opm-edge.ps1"
   if (Test-Path $edgeStart) {
     Write-Host "Attempting to open fixed-profile Edge for QR login..."
-    & pwsh -NoProfile -File $edgeStart -EdgeProfileDir $EdgeProfileDir -RemoteDebugPort $edgePort -StartUrl "https://opm.hnair.net/webroot/decision"
+    $edgePort = [int]([uri]$EdgeCdpUrl).Port
+    & pwsh -NoProfile -File $edgeStart -EdgeProfileDir $EdgeProfileDir -RemoteDebugPort $edgePort -StartUrl $env:FR_BASE_URL
   }
-  throw "Incremental download failed (exit=$downloadExitCode). Please complete QR login in the opened Edge window, then retry. If CDP remains unavailable, set OPM_FINE_AUTH_TOKEN and OPM_CAS_TICKET to enable HTTP fallback."
+  throw "Incremental download failed (exit=$downloadExitCode). Please complete QR login in the opened Edge window, then retry. If CDP remains unavailable, set FR_AUTH_TOKEN (or OPM_FINE_AUTH_TOKEN) and OPM_CAS_TICKET to enable HTTP fallback."
 }
 
 Write-Host "Refresh done. Next step should rescan catalog and retry query."

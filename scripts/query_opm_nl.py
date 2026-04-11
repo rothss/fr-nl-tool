@@ -47,7 +47,7 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
             rn = str(c.get("report_name") or "")
             if rn == "单机边际贡献":
                 return c
-        fixed = Path(r"C:\Users\ZhuanZ\opm_mirror\市场经营指标\主要经营指标\单机边际贡献.xlsx")
+        fixed = default_mirror_root() / "市场经营指标" / "主要经营指标" / "单机边际贡献.xlsx"
         if fixed.exists():
             return {
                 "report_id": -1,
@@ -63,7 +63,7 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
         return {
             "report_id": -3,
             "report_name": "航空集团收入利润概览（调整后）",
-            "file_path": str(Path(r"C:\Users\ZhuanZ\opm_mirror\航空板块经营报表\航空集团收入利润概览（调整后）.xlsx")),
+            "file_path": str(default_mirror_root() / "航空板块经营报表" / "航空集团收入利润概览（调整后）.xlsx"),
             "dir_path": "航空板块经营报表",
             "score": 0,
             "score_breakdown": {},
@@ -73,7 +73,7 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
             rn = str(c.get("report_name") or "")
             if "航空集团经营提升分析" in rn:
                 return c
-        fixed = Path(r"C:\Users\ZhuanZ\opm_mirror\航空板块经营报表\航空集团经营提升分析.xlsx")
+        fixed = default_mirror_root() / "航空板块经营报表" / "航空集团经营提升分析.xlsx"
         return {
             "report_id": -2,
             "report_name": "航空集团经营提升分析",
@@ -92,7 +92,7 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
             rn = str(c.get("report_name") or "")
             if "前十后十" in rn:
                 return c
-        fixed = Path(r"C:\Users\ZhuanZ\opm_mirror\航空板块经营报表\航空集团前十后十航班.xlsx")
+        fixed = default_mirror_root() / "航空板块经营报表" / "航空集团前十后十航班.xlsx"
         if fixed.exists():
             return {
                 "report_id": -1,
@@ -108,7 +108,7 @@ def choose_top_candidate(ranked: list[dict], intent: dict) -> dict:
             if "客座率票价分析" in str(c.get("report_name") or ""):
                 return c
         # Hard fallback for route/time flight query.
-        fixed = Path(r"C:\Users\ZhuanZ\opm_mirror\包干航线\未来航班客座率票价分析.xlsx")
+        fixed = default_mirror_root() / "包干航线" / "未来航班客座率票价分析.xlsx"
         if fixed.exists():
             return {
                 "report_id": -1,
@@ -504,7 +504,7 @@ def build_component_url_from_binding(binding: dict, filters: dict) -> str | None
             continue
         params[key] = _render_param_template(expr, filters)
     from urllib.parse import quote
-    base = "https://opm.hnair.net/webroot/decision/view/report"
+    base = os.environ.get("FR_BASE_URL", os.environ.get("OPM_BASE_URL", "http://localhost:8075/webroot/decision"))
     return (
         f"{base}?viewlet={quote(viewlet, safe='')}"
         f"&op={quote(op, safe='')}&__parameters__={quote(json.dumps(params, ensure_ascii=False), safe='')}"
@@ -1576,7 +1576,7 @@ def main() -> None:
     parser.add_argument("--db", default=str(default_catalog_db()))
     parser.add_argument("--excel-index", help="Path to excel_index.db (optional)")
     parser.add_argument("--profile-db", help="Path to report_profiles.db (optional)")
-    parser.add_argument("--user-scope", default=r"C:\Users\ZhuanZ\opm_mirror\search_index\user_scope.yaml")
+    parser.add_argument("--user-scope", default=str(default_mirror_root() / "search_index" / "user_scope.yaml"))
     parser.add_argument("--json", action="store_true", help="Print JSON result instead of text")
     args = parser.parse_args()
 

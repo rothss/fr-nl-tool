@@ -281,14 +281,16 @@ FR_INTENT_LLM_COMMAND=</pre>
   </div>
 
   <div class="card" style="border-left:4px solid var(--green);">
-    <h3 style="margin-top:0;">Phase 1：低风险配置化（1天）🔄 部分完成</h3>
+    <h3 style="margin-top:0;">Phase 1：低风险配置化（1天）✅ 已完成</h3>
     <ul class="checklist">
-      <li class="c-done">替换 <code>query_opm_nl.py:506</code> 硬编码 URL</li>
-      <li class="c-missing">替换 <code>export_components_and_index.py:53</code> 硬编码 URL</li>
+      <li class="c-done">替换 <code>query_opm_nl.py:506</code> 硬编码 URL → FR_BASE_URL</li>
+      <li class="c-done">替换 <code>export_components_and_index.py:53</code> 硬编码 URL → FR_BASE_URL</li>
       <li class="c-done">替换 <code>common.py:18</code> 硬编码 mirror 路径</li>
       <li class="c-done">更新 <code>runner.py</code> 硬编码路径</li>
       <li class="c-done">替换 <code>export_future_kzl_live.mjs</code> CAS 登录检测为可配置</li>
       <li class="c-done">更新所有 .mjs 中的环境变量名（FR_* + 向后兼容 OPM_*）</li>
+      <li class="c-done">替换 <code>export_report_live.ps1</code> 硬编码路径和 URL → FR_* 环境变量</li>
+      <li class="c-done">替换 <code>query_opm_nl.py</code> 示例数据中的 5 个硬编码路径 → default_mirror_root()</li>
     </ul>
   </div>
 

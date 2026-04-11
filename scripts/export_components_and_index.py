@@ -44,13 +44,15 @@ def _safe_name(s: str) -> str:
 
 
 def _build_component_url(item: dict) -> str:
+    import os
     raw = str(item.get("raw_url") or "").strip()
     if raw:
         return raw
     viewlet = str(item.get("viewlet") or "").strip()
     op = str(item.get("op") or "form_adaptive").strip() or "form_adaptive"
     from urllib.parse import quote
-    return f"https://opm.hnair.net/webroot/decision/view/report?viewlet={quote(viewlet, safe='')}&op={quote(op, safe='')}"
+    base = os.environ.get("FR_BASE_URL", os.environ.get("OPM_BASE_URL", "http://localhost:8075/webroot/decision"))
+    return f"{base}/view/report?viewlet={quote(viewlet, safe='')}&op={quote(op, safe='')}"
 
 
 def _pick_components(discovered: dict) -> list[dict]:
