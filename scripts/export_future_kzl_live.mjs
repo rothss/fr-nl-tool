@@ -116,6 +116,18 @@ function pickSegmentOption(options, segmentFrom, segmentTo, segmentText) {
   return null;
 }
 
+function looksLikeLoginPage(url, title, bodyText) {
+  const u = String(url || "");
+  const t = String(title || "");
+  const body = String(bodyText || "");
+  return (
+    u.includes("login.hnagroup.com") ||
+    t.includes("统一登录平台") ||
+    body.includes("扫码登录") ||
+    body.includes("账号登录")
+  );
+}
+
 async function run() {
   // Ensure local CDP access is not routed by proxy.
   process.env.NO_PROXY = "127.0.0.1,localhost";
@@ -134,6 +146,17 @@ async function run() {
     const viewUrl = `${opts.baseUrl}/view/form?viewlet=${encodeURIComponent(opts.reportPath)}&op=view`;
     await page.goto(viewUrl, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForTimeout(opts.waitMs);
+
+    const pageState = await page.evaluate(() => ({
+      url: location.href,
+      title: document.title,
+      bodyText: document.body ? document.body.innerText.slice(0, 400) : "",
+      hasG: !!(window._g && window._g()),
+      hasParameterEl: !!(window._g && window._g() && window._g().parameterEl),
+    }));
+    if (looksLikeLoginPage(pageState.url, pageState.title, pageState.bodyText)) {
+      throw new Error(`login_required url=${pageState.url} title=${pageState.title}`);
+    }
 
     const sidMeta = await page.evaluate(() => {
       const g = window._g && window._g();

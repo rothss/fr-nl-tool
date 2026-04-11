@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开源可行性分析：删除Hermes + 配置化内部URL + 作为OpenClaw Skill开源</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --border: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+    --green: #4ade80; --yellow: #fbbf24; --red: #f87171; --orange: #fb923c;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height:1.7; }
+  .container { max-width:1100px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:1.6rem; margin-bottom:8px; }
+  h2 { font-size:1.25rem; color:var(--accent); margin:32px 0 12px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+  h3 { font-size:1.05rem; margin:20px 0 8px; }
+  .verdict { display:inline-block; padding:4px 14px; border-radius:6px; font-weight:700; font-size:.95rem; }
+  .v-green { background:#166534; color:#4ade80; }
+  .v-yellow { background:#713f12; color:#fbbf24; }
+  .v-red { background:#7f1d1d; color:#f87171; }
+  .v-orange { background:#7c2d12; color:#fb923c; }
+  .subtitle { color:var(--muted); margin-bottom:24px; font-size:.95rem; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; margin:14px 0; }
+  .card-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:700px){ .card-grid{grid-template-columns:1fr;} }
+  table { width:100%; border-collapse:collapse; margin:8px 0; font-size:.88rem; }
+  th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); }
+  th { color:var(--accent); font-weight:600; white-space:nowrap; }
+  code { background:#1a2332; padding:2px 6px; border-radius:4px; font-size:.85rem; color:#7dd3fc; }
+  pre { background:#0c1222; padding:12px; border-radius:6px; overflow-x:auto; font-size:.82rem; margin:8px 0; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.78rem; font-weight:600; }
+  .t-easy { background:#166534; color:#4ade80; }
+  .t-med { background:#713f12; color:#fbbf24; }
+  .t-hard { background:#7f1d1d; color:#f87171; }
+  .t-opt { background:#1e3a5f; color:#7dd3fc; }
+  .step { display:flex; gap:12px; margin:10px 0; align-items:flex-start; }
+  .step-num { min-width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.85rem; }
+  .s-green { background:#166534; color:#4ade80; }
+  .s-yellow { background:#713f12; color:#fbbf24; }
+  .s-red { background:#7f1d1d; color:#f87171; }
+  .step-body { flex:1; }
+  .step-body h4 { margin:0 0 4px; font-size:.95rem; }
+  .step-body p { margin:0; color:var(--muted); font-size:.88rem; }
+  .checklist { list-style:none; padding:0; }
+  .checklist li { padding:6px 0; font-size:.9rem; display:flex; gap:8px; }
+  .checklist li::before { content:''; min-width:18px; height:18px; border-radius:4px; display:inline-block; margin-top:3px; }
+  .c-done::before { background:#166534; content:'✓'; color:#4ade80; text-align:center; line-height:18px; font-size:.75rem; }
+  .c-partial::before { background:#713f12; content:'◐'; color:#fbbf24; text-align:center; line-height:18px; font-size:.75rem; }
+  .c-missing::before { background:#7f1d1d; content:'✗'; color:#f87171; text-align:center; line-height:18px; font-size:.75rem; }
+  .risk-matrix { display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; font-size:.88rem; margin:8px 0; }
+  .risk-matrix .r-label { font-weight:600; color:var(--muted); }
+  .risk-matrix .r-desc { color:var(--text); }
+  .risk-matrix .r-level { font-weight:700; text-align:right; }
+  .arch-box { background:#0c1222; border:1px solid var(--border); border-radius:8px; padding:16px; margin:12px 0; }
+  .arch-box pre { margin:0; background:transparent; padding:0; }
+  .footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--border); color:var(--muted); font-size:.82rem; }
+  .summary-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; text-align:center; }
+  .stat-num { font-size:1.8rem; font-weight:700; }
+  .stat-label { font-size:.78rem; color:var(--muted); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🧭 开源可行性分析</h1>
+<p class="subtitle">方案：删除Hermes内容 + 内部URL替换为可配置帆软地址 + 作为OpenClaw Skill开源</p>
+
+<!-- 结论 -->
+<div class="card" style="border-left:4px solid var(--green);">
+  <h3 style="margin-top:0;">总体结论：<span class="verdict v-green">可行，但需要分阶段改造</span></h3>
+  <p>删除 Hermes 完全无风险；内部 URL 配置化工作量低；核心挑战在于<strong>领域知识的剥离与通用化</strong>。推荐定位为 <strong>"帆软报表自然语言查询的 OpenClaw Skill 模板/参考实现"</strong>，而非一个开箱即用的通用产品。</p>
+</div>
+
+<div class="summary-stats">
+  <div class="stat-card"><div class="stat-num" style="color:var(--green);">6</div><div class="stat-label">可立即删除的文件</div></div>
+  <div class="stat-card"><div class="stat-num" style="color:var(--green);">5</div><div class="stat-label">已有 OPM_BASE_URL 支持</div></div>
+  <div class="stat-card"><div class="stat-num" style="color:var(--yellow);">12</div><div class="stat-label">需配置化的硬编码项</div></div>
+  <div class="stat-card"><div class="stat-num" style="color:var(--orange);">3</div><div class="stat-label">需架构级调整的模块</div></div>
+</div>
+
+<!-- ========== 第一部分：Hermes 删除 ========== -->
+<h2>一、删除 Hermes 内容</h2>
+
+<div class="card" style="border-left:4px solid var(--green);">
+  <h3 style="margin-top:0;color:var(--green);">结论：零风险，立即执行</h3>
+  <p>Hermes 是 NousResearch 的独立 Agent 运行时，与本项目核心功能<strong>完全零耦合</strong>。没有任何 Python/JS 代码 import 或调用 Hermes。以下 6 个文件可安全删除：</p>
+</div>
+
+<table>
+  <tr><th>文件</th><th>用途</th><th>操作</th></tr>
+  <tr><td><code>install-hermes.ps1</code></td><td>从 GitHub 安装 hermes-agent 到 WSL</td><td><span class="tag t-easy">删除</span></td></tr>
+  <tr><td><code>setup-hermes.bat</code></td><td>WSL 中运行 hermes setup</td><td><span class="tag t-easy">删除</span></td></tr>
+  <tr><td><code>start-hermes.bat</code></td><td>WSL 中启动 hermes</td><td><span class="tag t-easy">删除</span></td></tr>
+  <tr><td><code>check-hermes.sh</code></td><td>WSL 中验证 hermes 环境</td><td><span class="tag t-easy">删除</span></td></tr>
+  <tr><td><code>启动 Hermes.bat</code></td><td>中文版启动脚本</td><td><span class="tag t-easy">删除</span></td></tr>
+  <tr><td><code>配置 Hermes.bat</code></td><td>中文版配置脚本</td><td><span class="tag t-easy">删除</span></td></tr>
+</table>
+
+<!-- ========== 第二部分：内部URL配置化 ========== -->
+<h2>二、内部系统地址 → 通用帆软地址（dotenv 配置化）</h2>
+
+<div class="card" style="border-left:4px solid var(--green);">
+  <h3 style="margin-top:0;color:var(--green);">结论：工作量低，大部分已有环境变量支持</h3>
+  <p>所有 <code>.mjs</code> 导出脚本已通过 <code>OPM_BASE_URL</code> 支持自定义地址。仅需补充 Python 端硬编码处 + 引入 dotenv。</p>
+</div>
+
+<h3>2.1 现有环境变量清单（已支持配置化）</h3>
+<table>
+  <tr><th>环境变量</th><th>当前默认值</th><th>建议新名称</th><th>建议通用默认值</th></tr>
+  <tr><td><code>OPM_BASE_URL</code></td><td><code>https://opm.hnair.net/webroot/decision</code></td><td><code>FR_BASE_URL</code></td><td><code>http://localhost:8075/webroot/decision</code></td></tr>
+  <tr><td><code>OPM_EDGE_CDP_URL</code></td><td><code>http://127.0.0.1:9333</code></td><td><code>FR_CDP_URL</code></td><td><code>http://127.0.0.1:9222</code></td></tr>
+  <tr><td><code>OPM_BATCH_ROOT</code></td><td><code>C:/Users/ZhuanZ/opm_batch</code></td><td><code>FR_BATCH_ROOT</code></td><td><code>./fr_batch</code></td></tr>
+  <tr><td><code>OPM_DOM_PROFILE_DIR</code></td><td><code>C:/Users/ZhuanZ/opm_mirror/.../dom_profiles</code></td><td><code>FR_DOM_PROFILE_DIR</code></td><td><code>./fr_mirror/dom_profiles</code></td></tr>
+  <tr><td><code>FR_EXCEL_INDEX_DB</code></td><td>多级 fallback</td><td>保持</td><td><code>./fr_mirror/excel_index.db</code></td></tr>
+  <tr><td><code>OPM_NL_INTENT_LLM_COMMAND</code></td><td>空</td><td><code>FR_INTENT_LLM_COMMAND</code></td><td>空</td></tr>
+  <tr><td><code>OPM_FINE_AUTH_TOKEN</code></td><td>空</td><td><code>FR_AUTH_TOKEN</code></td><td>空</td></tr>
+  <tr><td><code>OPM_CAS_TICKET</code></td><td>空</td><td>删除（改为通用 FineReport 认证）</td><td>—</td></tr>
+</table>
+
+<h3>2.2 仍需修复的硬编码位置</h3>
+<table>
+  <tr><th>文件</th><th>行号</th><th>硬编码内容</th><th>修复方案</th></tr>
+  <tr><td><code>scripts/query_opm_nl.py</code></td><td>506</td><td><code>base = "https://opm.hnair.net/..."</code></td><td><code>os.environ.get("FR_BASE_URL", "http://localhost:8075/webroot/decision")</code></td></tr>
+  <tr><td><code>scripts/export_components_and_index.py</code></td><td>53</td><td><code>f"https://opm.hnair.net/..."</code></td><td>同上，从环境变量派生</td></tr>
+  <tr><td><code>scripts/export_future_kzl_live.mjs</code></td><td>124</td><td><code>u.includes("login.hnagroup.com")</code></td><td>改为 <code>FR_LOGIN_PAGE_PATTERNS</code> 配置或通用检测</td></tr>
+  <tr><td><code>scripts/common.py</code></td><td>18</td><td><code>C:\Users\ZhuanZ\opm_mirror</code></td><td><code>os.environ.get("FR_MIRROR_ROOT", "./fr_mirror")</code></td></tr>
+  <tr><td><code>scripts/query_opm_nl.py</code></td><td>169</td><td><code>C:\Users\ZhuanZ\finereport-search\...</code></td><td>环境变量 <code>FR_BUILD_INDEX_PY</code></td></tr>
+  <tr><td><code>scripts/export_components_and_index.py</code></td><td>168</td><td><code>C:\Users\ZhuanZ\finereport-search\...</code></td><td>同上</td></tr>
+  <tr><td><code>scripts/excel_index_candidates.py</code></td><td>19</td><td><code>C:\Users\ZhuanZ\finereport-search\...</code></td><td>同上</td></tr>
+  <tr><td><code>scripts/runner.py</code></td><td>195,260</td><td><code>C:\Users\ZhuanZ\opm_mirror\...</code></td><td>使用 <code>common.py</code> 默认值</td></tr>
+  <tr><td><code>scripts/export_report_live.ps1</code></td><td>5</td><td><code>C:\Users\ZhuanZ\.codex\skills\...</code></td><td>环境变量或相对路径</td></tr>
+  <tr><td><code>scripts/export_future_kzl_live.mjs</code></td><td>13</td><td><code>C:/Users/ZhuanZ/opm_mirror/包干航线/...</code></td><td><code>FR_MIRROR_ROOT</code> 派生</td></tr>
+</table>
+
+<h3>2.3 建议的 .env.example</h3>
+<pre># ===== FineReport Server =====
+FR_BASE_URL=http://localhost:8075/webroot/decision
+FR_AUTH_TOKEN=
+
+# ===== Browser Automation =====
+FR_CDP_URL=http://127.0.0.1:9222
+FR_BATCH_ROOT=./fr_batch
+
+# ===== Data Mirror =====
+FR_MIRROR_ROOT=./fr_mirror
+FR_DOM_PROFILE_DIR=./fr_mirror/dom_profiles
+FR_EXCEL_INDEX_DB=./fr_mirror/excel_index.db
+FR_BUILD_INDEX_PY=
+
+# ===== Login Detection (pipe-separated patterns) =====
+FR_LOGIN_PATTERNS=login_required|unauthorized|请先登录
+
+# ===== Optional Local Intent LLM =====
+FR_INTENT_LLM_COMMAND=</pre>
+
+<!-- ========== 第三部分：作为OpenClaw Skill开源的可行性 ========== -->
+<h2>三、作为 OpenClaw Skill 开源的核心分析</h2>
+
+<div class="card" style="border-left:4px solid var(--yellow);">
+  <h3 style="margin-top:0;color:var(--yellow);">结论：可行，但需明确定位</h3>
+  <p>本项目本质是一个<strong>"自然语言 → 帆软报表查询"的领域专用框架</strong>。架构清晰、分层合理，但业务逻辑深度绑定 OPM 领域。开源后用户无法直接使用，需按模板改造自己的领域配置。</p>
+  <p style="margin-top:8px;"><strong>推荐定位：</strong>参考实现 + Skill 模板，而非即插即用产品。</p>
+</div>
+
+<h3>3.1 架构可复用性评估</h3>
+<div class="arch-box">
+<pre>┌─────────────────────────────────────────────────────────────────┐
+│                    架构层次复用性热力图                           │
+├─────────────────────┬───────────┬───────────────────────────────┤
+│ 层次                 │ 复用度     │ 说明                          │
+├─────────────────────┼───────────┼───────────────────────────────┤
+│ adapters/            │ █████████ │ 100% 通用 — OpenClaw 信封     │
+│ render/              │ ████████░ │ 80% 通用 — 消息模板需定制      │
+│ intent/normalize     │ ███████░░ │ 70% 通用 — 机场别名需替换      │
+│ intent/parser_rules  │ ██░░░░░░░ │ 20% — 全是 OPM 业务规则       │
+│ intent/parser_llm    │ █████████ │ 100% 通用 — LLM slot filler   │
+│ intent/validator     │ ███████░░ │ 70% 通用 — 校验逻辑可复用      │
+│ planning/router      │ ██░░░░░░░ │ 20% — 硬编码5个报表家族       │
+│ planning/planner     │ ███████░░ │ 70% 通用 — 计划构建框架        │
+│ planning/refresh     │ ████████░ │ 80% 通用 — 刷新策略           │
+│ data/catalog         │ █████████ │ 100% 通用 — SQLite 目录搜索   │
+│ data/source_loader   │ ██████░░░ │ 60% — 包含 OPM 特定报表名     │
+│ data/schemas         │ ████░░░░░ │ 40% — Schema 验证框架通用     │
+│ data/extractor_reg   │ ██░░░░░░░ │ 20% — OPM 专用分析引擎映射    │
+│ analysis/*           │ █░░░░░░░░ │ 10% — 全部 OPM 业务逻辑       │
+│ CDP 导出 (.mjs)      │ ████████░ │ 85% 通用 — 帆软控件自动化     │
+│ Excel 提取           │ █████████ │ 100% 通用 — openpyxl 表格提取  │
+│ references/*.yaml    │ █░░░░░░░░ │ 10% — 全部 OPM 领域知识       │
+├─────────────────────┼───────────┼───────────────────────────────┤
+│ 整体框架复用度        │ ~55%      │ 框架可复用，领域知识需替换     │
+└─────────────────────┴───────────┴───────────────────────────────┘</pre>
+</div>
+
+<h3>3.2 开源后用户的改造路径</h3>
+
+<div class="card">
+  <p>开源后，一个典型的帆软用户要使用此 Skill，需完成以下步骤：</p>
+  <div class="step"><div class="step-num s-red">1</div><div class="step-body"><h4>替换领域知识</h4><p>重写 <code>references/*.yaml</code>：synonyms（指标同义词）、column_aliases（列名映射）、report_schemas（报表 Schema）、airport_aliases → 自定义别名</p></div></div>
+  <div class="step"><div class="step-num s-red">2</div><div class="step-body"><h4>重写意图解析规则</h4><p>修改 <code>intent/parser_rules.py</code>：替换 OPM 专用的指标名、时间短语、航司/航段提取逻辑</p></div></div>
+  <div class="step"><div class="step-num s-yellow">3</div><div class="step-body"><h4>配置报表路由</h4><p>修改 <code>planning/router.py</code>：定义自己的报表家族和路由规则</p></div></div>
+  <div class="step"><div class="step-num s-yellow">4</div><div class="step-body"><h4>编写分析引擎</h4><p>在 <code>analysis/</code> 下编写自己的业务分析逻辑</p></div></div>
+  <div class="step"><div class="step-num s-green">5</div><div class="step-body"><h4>配置环境变量</h4><p>填写 <code>.env</code>，指向自己的帆软服务器和本地镜像目录</p></div></div>
+  <div class="step"><div class="step-num s-green">6</div><div class="step-body"><h4>构建报表目录</h4><p>运行 <code>build_report_catalog.py</code> 扫描本地 Excel 镜像</p></div></div>
+</div>
+
+<h3>3.3 三大核心风险</h3>
+
+<div class="risk-matrix">
+  <div class="r-label" style="color:var(--red);">🔴 风险1</div>
+  <div class="r-desc"><strong>CDP 认证方式不可移植</strong> — 当前依赖"用户手动扫码登录浏览器 → Playwright 复用 Cookie"模式。外部用户无法理解这个流程，且没有标准 FineReport REST API 认证替代方案。</div>
+  <div class="r-level" style="color:var(--red);">Critical</div>
+
+  <div class="r-label" style="color:var(--red);">🔴 风险2</div>
+  <div class="r-desc"><strong>finereport-search 工具链依赖</strong> — <code>excel_index_candidates.py</code> 和 <code>query_opm_nl.py</code> 硬编码引用 <code>C:\Users\ZhuanZ\finereport-search\</code> 下的外部工具。此工具非公开项目，其他用户无法获取。</div>
+  <div class="r-level" style="color:var(--red);">Critical</div>
+
+  <div class="r-label" style="color:var(--orange);">🟠 风险3</div>
+  <div class="r-desc"><strong>领域知识密度过高</strong> — <code>query_opm_nl.py</code>（1600行）内含大量 OPM 特有业务分支（包干航线、前十后十、首航、竞航分析等），难以通过配置剥离。</div>
+  <div class="r-level" style="color:var(--orange);">High</div>
+</div>
+
+<h3>3.4 风险缓解方案</h3>
+
+<div class="card-grid">
+  <div class="card">
+    <h3 style="color:var(--red);margin-top:0;">CDP 认证 → 增加 REST API 认证</h3>
+    <p>新增 <code>FR_AUTH_MODE=cdp|api</code> 配置：</p>
+    <ul>
+      <li><code>api</code> 模式：调用 <code>/webroot/decision/login</code> 用 <code>FR_USERNAME</code>+<code>FR_PASSWORD</code> 获取 <code>fine_auth_token</code></li>
+      <li><code>cdp</code> 模式：保留现有 Playwright+CDP 方式</li>
+    </ul>
+    <p style="color:var(--muted);font-size:.85rem;">预估工作量：2-3天</p>
+  </div>
+  <div class="card">
+    <h3 style="color:var(--red);margin-top:0;">finereport-search → 可选化 + 内置简化版</h3>
+    <p>方案：</p>
+    <ul>
+      <li>将 <code>finereport-search</code> 依赖改为<strong>可选</strong>，未安装时降级为仅目录库搜索</li>
+      <li>内置一个简化版 <code>build_excel_index.py</code>，用 openpyxl 提取单元格文本建 SQLite FTS 索引</li>
+    </ul>
+    <p style="color:var(--muted);font-size:.85rem;">预估工作量：1-2天</p>
+  </div>
+  <div class="card">
+    <h3 style="color:var(--orange);margin-top:0;">query_opm_nl.py → 分层拆分</h3>
+    <p>当前 1600 行的巨型文件应拆分：</p>
+    <ul>
+      <li>通用查询执行框架 → <code>core/executor.py</code></li>
+      <li>OPM 业务分支 → 移入 <code>analysis/</code> 或标记为 <code>examples/</code></li>
+      <li>CDP 导出调度 → <code>core/live_export.py</code></li>
+    </ul>
+    <p style="color:var(--muted);font-size:.85rem;">预估工作量：3-5天</p>
+  </div>
+  <div class="card">
+    <h3 style="color:var(--yellow);margin-top:0;">login.hnagroup.com → 通用登录检测</h3>
+    <p>将 CAS 登录页检测改为可配置模式：</p>
+    <pre style="font-size:.8rem;">FR_LOGIN_PATTERNS=\
+  login.hnagroup.com|\
+  统一登录平台|\
+  请先登录|\
+  unauthorized</pre>
+    <p style="color:var(--muted);font-size:.85rem;">预估工作量：0.5天</p>
+  </div>
+</div>
+
+<!-- ========== 第四部分：改造TODO ========== -->
+<h2>四、改造 TODO 清单</h2>
+
+<div class="card-grid">
+  <div class="card" style="border-left:4px solid var(--green);">
+    <h3 style="margin-top:0;">Phase 0：立即可做（0.5天）</h3>
+    <ul class="checklist">
+      <li class="c-missing">删除 6 个 Hermes 文件</li>
+      <li class="c-missing">创建 <code>.env.example</code>（含所有环境变量）</li>
+      <li class="c-missing">在 <code>common.py</code> 中引入 dotenv（<code>python-dotenv</code>）</li>
+      <li class="c-missing">将环境变量名从 <code>OPM_*</code> 重命名为 <code>FR_*</code></li>
+      <li class="c-missing">更新 <code>.gitignore</code>（添加 <code>.env</code>、<code>fr_mirror/</code> 等）</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--green);">
+    <h3 style="margin-top:0;">Phase 1：低风险配置化（1天）</h3>
+    <ul class="checklist">
+      <li class="c-missing">替换 <code>query_opm_nl.py:506</code> 硬编码 URL</li>
+      <li class="c-missing">替换 <code>export_components_and_index.py:53</code> 硬编码 URL</li>
+      <li class="c-missing">替换 <code>common.py:18</code> 硬编码 mirror 路径</li>
+      <li class="c-missing">替换所有 <code>C:\Users\ZhuanZ\opm_mirror</code> 硬编码路径</li>
+      <li class="c-missing">替换 <code>export_future_kzl_live.mjs:124</code> CAS 登录检测</li>
+      <li class="c-missing">更新所有 .mjs 中的环境变量名</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--yellow);">
+    <h3 style="margin-top:0;">Phase 2：finereport-search 解耦（2天）</h3>
+    <ul class="checklist">
+      <li class="c-missing">将 <code>finereport-search</code> 路径改为 <code>FR_BUILD_INDEX_PY</code> 环境变量</li>
+      <li class="c-missing">未配置时降级为仅目录库搜索（跳过 Excel 全文索引）</li>
+      <li class="c-missing">编写简化版 <code>scripts/build_excel_index.py</code></li>
+      <li class="c-missing">更新 <code>excel_index_candidates.py</code> 的 fallback 逻辑</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--yellow);">
+    <h3 style="margin-top:0;">Phase 3：认证通用化（2-3天）</h3>
+    <ul class="checklist">
+      <li class="c-missing">新增 <code>FR_AUTH_MODE=cdp|api</code> 配置</li>
+      <li class="c-missing">实现 FineReport REST API 认证（<code>/webroot/decision/login</code>）</li>
+      <li class="c-missing">添加 <code>FR_USERNAME</code>、<code>FR_PASSWORD</code> 环境变量</li>
+      <li class="c-missing">在 .mjs 导出脚本中支持 API token 认证</li>
+      <li class="c-missing">移除 <code>OPM_CAS_TICKET</code> 相关代码</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--orange);">
+    <h3 style="margin-top:0;">Phase 4：领域知识剥离（3-5天）</h3>
+    <ul class="checklist">
+      <li class="c-missing">将 OPM 业务分支从 <code>query_opm_nl.py</code> 移至 <code>examples/opm/</code></li>
+      <li class="c-missing">提取通用查询执行框架 → <code>core/executor.py</code></li>
+      <li class="c-missing">将 <code>references/</code> 移至 <code>references/examples/opm/</code></li>
+      <li class="c-missing">创建 <code>references/templates/</code> 空模板</li>
+      <li class="c-missing">更新 <code>router.py</code> 为配置驱动（从 YAML 读取路由规则）</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--accent);">
+    <h3 style="margin-top:0;">Phase 5：开源准备（2天）</h3>
+    <ul class="checklist">
+      <li class="c-missing">添加 LICENSE（推荐 MIT）</li>
+      <li class="c-missing">编写 README.md（架构说明 + 快速开始 + 自定义指南）</li>
+      <li class="c-missing">添加 CONTRIBUTING.md</li>
+      <li class="c-missing">添加 <code>requirements.txt</code>（含版本号）</li>
+      <li class="c-missing">添加 <code>package.json</code>（Node.js 依赖声明）</li>
+      <li class="c-missing">清理审计报告 HTML 文件（移除或加入 .gitignore）</li>
+      <li class="c-missing">清理 <code>note/海航/</code> 目录</li>
+      <li class="c-missing">确保测试可在无 OPM 环境下运行</li>
+      <li class="c-missing">添加 GitHub Actions CI（Python + Node 测试）</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ========== 第五部分：Skill重命名建议 ========== -->
+<h2>五、Skill 重命名与定位</h2>
+
+<div class="card">
+  <table>
+    <tr><th>维度</th><th>当前</th><th>建议</th></tr>
+    <tr><td>Skill 名称</td><td><code>opm-nl-report-query</code></td><td><code>finereport-nl-query</code></td></tr>
+    <tr><td>描述</td><td>"OPM KPI questions"</td><td>"Natural-language FineReport query skill for OpenClaw"</td></tr>
+    <tr><td>定位</td><td>海航 OPM 专用</td><td>通用帆软报表查询模板 + OPM 参考示例</td></tr>
+    <tr><td>默认报表</td><td>5 个 OPM 报表家族</td><td>无默认（用户提供 references/）</td></tr>
+  </table>
+</div>
+
+<h3>5.1 建议的 SKILL.md 结构</h3>
+<pre>---
+name: finereport-nl-query
+description: Answer natural-language questions by querying FineReport
+  reports via structured intent parsing, report catalog ranking,
+  live CDP/API export, and domain-specific analysis.
+---
+
+# FineReport NL Query Skill
+
+## Prerequisites
+- A running FineReport server (or local mirror of exported Excel files)
+- Node.js (for CDP-based live export)
+- Python 3.10+
+
+## Quick Start
+1. Copy `.env.example` → `.env` and configure
+2. Customize `references/*.yaml` for your domain
+3. Build report catalog: `python scripts/build_report_catalog.py`
+4. Query: `python scripts/runner.py "your question" --output-format json`
+
+## Customization Guide
+See `examples/opm/` for a complete domain-specific reference.</pre>
+
+<!-- ========== 第六部分：最终建议 ========== -->
+<h2>六、最终建议</h2>
+
+<div class="card" style="border-left:4px solid var(--accent);">
+  <h3 style="margin-top:0;">推荐策略：分两阶段开源</h3>
+
+  <h4>🟢 Phase A（2-3天）：先做"内部清理版"开源</h4>
+  <p>只做 Phase 0-1 + Phase 5 的部分工作。删除 Hermes、配置化 URL/路径、添加 LICENSE/README。此时项目仍包含 OPM 领域知识，但所有内部敏感信息已移除。定位为 <strong>"带业务示例的 Skill 参考实现"</strong>。</p>
+  <p style="color:var(--muted);font-size:.85rem;">这样做的好处：快速上线，用户可以看到完整的工作示例（OPM），理解架构如何工作。</p>
+
+  <h4 style="margin-top:16px;">🟡 Phase B（1-2周）：做"通用模板版"</h4>
+  <p>完成 Phase 2-4。解耦 finereport-search、实现 REST API 认证、剥离领域知识为示例。定位为 <strong>"可定制的通用帆软报表 NL 查询 Skill 模板"</strong>。</p>
+  <p style="color:var(--muted);font-size:.85rem;">这样做的好处：用户可以基于模板快速搭建自己的领域查询 Skill。</p>
+</div>
+
+<div class="card" style="background:#0c1a2e;border-color:#1e40af;">
+  <h3 style="margin-top:0;color:var(--accent);">💡 关键洞察</h3>
+  <p>此项目最有价值的开源资产不是"OPM 报表查询"，而是以下三个<strong>可复用的技术组件</strong>：</p>
+  <ol style="margin:8px 0 0 20px; font-size:.9rem;">
+    <li><strong>帆软报表 CDP 自动化导出引擎</strong>（<code>export_report_generic_live.mjs</code>）— 支持任意 FineReport .cpt/.frm 报表的参数填充 + Excel 导出</li>
+    <li><strong>自然语言意图解析框架</strong>（<code>intent/</code>）— 规则引擎 + 可选 LLM slot filler + 校验修复</li>
+    <li><strong>OpenClaw Skill 契约模式</strong>（<code>adapters/openclaw_contract.py</code>）— 结构化信封 + 分阶段状态 + 失败降级</li>
+  </ol>
+  <p style="margin-top:8px;color:var(--muted);font-size:.88rem;">这三个组件即使不作为完整 Skill，也可以独立被其他开发者复用。</p>
+</div>
+
+<div class="footer">
+  <p>生成时间：2026-04-11 | 基于 opm-nl-report-query 项目全量代码分析</p>
+</div>
+
+</div>
+</body>
+</html>

@@ -5,6 +5,8 @@ param(
   [string]$OpmSkillRoot = "C:\Users\ZhuanZ\.codex\skills\opm-incremental-download",
   [string]$EdgeCdpUrl = "http://127.0.0.1:9333",
   [string]$EdgeProfileDir = "C:\Users\ZhuanZ\opm_edge_profile_nlquery",
+  [string]$FallbackEdgeCdpUrl = "http://127.0.0.1:9222",
+  [string]$FallbackEdgeProfileDir = "C:\Users\ZhuanZ\opm_edge_profile",
   [string]$OutputRoot = "C:\Users\ZhuanZ\opm_mirror",
   [string]$BatchRoot = "C:\Users\ZhuanZ\opm_batch",
   [ValidateSet("never","if_missing","always")]
@@ -51,12 +53,27 @@ function Ensure-EdgeCdpReady {
   Start-Sleep -Seconds 3
 }
 
-$edgePort = [int]([uri]$EdgeCdpUrl).Port
-Ensure-EdgeCdpReady -Root $OpmSkillRoot -Url $cdpVersionUrl -Port $edgePort -ProfileDir $EdgeProfileDir
+function Invoke-IncrementalRefresh {
+  param(
+    [string]$Root,
+    [string]$CdpUrl,
+    [string]$ProfileDir
+  )
+  $localVersionUrl = ($CdpUrl.TrimEnd('/')) + "/json/version/"
+  $localPort = [int]([uri]$CdpUrl).Port
+  Ensure-EdgeCdpReady -Root $Root -Url $localVersionUrl -Port $localPort -ProfileDir $ProfileDir
+  & pwsh -NoProfile -File $downloadScript -IncludeRootName $IncludeRootName -Overwrite $Overwrite -EdgeCdpUrl $CdpUrl -EdgeProfileDir $ProfileDir
+  return $LASTEXITCODE
+}
 Write-Host "Running incremental refresh for root: $IncludeRootName"
-& pwsh -NoProfile -File $downloadScript -IncludeRootName $IncludeRootName -Overwrite $Overwrite -EdgeCdpUrl $EdgeCdpUrl -EdgeProfileDir $EdgeProfileDir
-if ($LASTEXITCODE -ne 0) {
+Invoke-IncrementalRefresh -Root $OpmSkillRoot -CdpUrl $EdgeCdpUrl -ProfileDir $EdgeProfileDir
+$downloadExitCode = $LASTEXITCODE
+if ($downloadExitCode -ne 0 -and -not [string]::IsNullOrWhiteSpace($FallbackEdgeCdpUrl) -and $FallbackEdgeCdpUrl -ne $EdgeCdpUrl) {
+  Write-Host "Primary profile refresh failed. Trying fallback profile..."
+  Invoke-IncrementalRefresh -Root $OpmSkillRoot -CdpUrl $FallbackEdgeCdpUrl -ProfileDir $FallbackEdgeProfileDir
   $downloadExitCode = $LASTEXITCODE
+}
+if ($downloadExitCode -ne 0) {
   if ((Test-Path $httpScript) -and -not [string]::IsNullOrWhiteSpace($Token) -and -not [string]::IsNullOrWhiteSpace($CasTicket)) {
     Write-Host "CDP flow failed. Trying HTTP fallback with provided token/cas ticket..."
     & pwsh -NoProfile -File $httpScript -Mode run -OutputRoot $OutputRoot -IncludeRootName $IncludeRootName -Token $Token -CasTicket $CasTicket -FineRemember $FineRemember -Overwrite $Overwrite -MaxRetry 2

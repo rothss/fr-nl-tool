@@ -37,9 +37,15 @@ def build_plan(intent: dict, query_result: dict) -> dict:
 def build_source_meta(query_result: dict) -> dict | None:
     top = query_result.get("top_candidate") or {}
     plan = query_result.get("plan") or {}
-    if not top and not query_result.get("live_refresh_error") and not plan.get("report_path"):
+    source_path = query_result.get("source_path") or top.get("file_path") or plan.get("report_path")
+    if not top and not query_result.get("live_refresh_error") and not source_path:
         return None
-    return acquire_source(plan, query_result.get("intent") or {}, query_result)
+    acquire_payload = dict(query_result)
+    if source_path:
+        top_with_source = dict(top)
+        top_with_source["file_path"] = source_path
+        acquire_payload["top_candidate"] = top_with_source
+    return acquire_source(plan, query_result.get("intent") or {}, acquire_payload)
 
 
 def build_analysis_result(query_result: dict) -> dict | None:

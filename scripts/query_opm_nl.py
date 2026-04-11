@@ -4,6 +4,7 @@ import argparse
 import copy
 import json
 import hashlib
+import os
 import re
 import sqlite3
 import subprocess
@@ -247,35 +248,23 @@ def run_live_refresh(report_name: str, overwrite: str = "always") -> tuple[bool,
 def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> tuple[bool, str]:
     script = Path(__file__).resolve().parent / "export_future_kzl_live.mjs"
     filters = intent.get("filters") or {}
-    args = ["node", str(script)]
+    base_args = ["node", str(script)]
     if output_file:
-        args += ["--output-file", output_file]
+        base_args += ["--output-file", output_file]
     dates = filters.get("flight_date") or []
     if dates:
-        args += ["--date-start", str(dates[0]), "--date-end", str(dates[0])]
+        base_args += ["--date-start", str(dates[0]), "--date-end", str(dates[0])]
     if filters.get("date_start") and filters.get("date_end"):
-        args += ["--date-start", str(filters.get("date_start")), "--date-end", str(filters.get("date_end"))]
+        base_args += ["--date-start", str(filters.get("date_start")), "--date-end", str(filters.get("date_end"))]
     flight_nos = filters.get("flight_no") or []
     if flight_nos:
-        args += ["--flight-no", str(flight_nos[0])]
-        args += ["--comp-code", str(flight_nos[0])[:2]]
+        base_args += ["--flight-no", str(flight_nos[0])]
+        base_args += ["--comp-code", str(flight_nos[0])[:2]]
     seg_from = filters.get("segment_from")
     seg_to = filters.get("segment_to")
     if seg_from and seg_to:
-        args += ["--segment-from", str(seg_from), "--segment-to", str(seg_to)]
-        args += ["--segment-text", f"{seg_from}-{seg_to}"]
-
-    try:
-        proc = subprocess.run(
-            args,
-            check=False,
-            capture_output=True,
-            timeout=60,
-        )
-    except subprocess.TimeoutExpired:
-        return False, "fast_future_export_timeout"
-    stdout_b = proc.stdout or b""
-    stderr_b = proc.stderr or b""
+        base_args += ["--segment-from", str(seg_from), "--segment-to", str(seg_to)]
+        base_args += ["--segment-text", f"{seg_from}-{seg_to}"]
 
     def _decode(raw: bytes) -> str:
         if not raw:
@@ -287,11 +276,34 @@ def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> 
                 continue
         return raw.decode("utf-8", errors="ignore")
 
-    out = _decode(stdout_b).strip()
-    err = _decode(stderr_b).strip()
-    if proc.returncode == 0:
-        return True, out
-    return False, (err or out)
+    default_cdp = str(os.environ.get("OPM_EDGE_CDP_URL") or "http://127.0.0.1:9333").strip()
+    cdp_candidates: list[str] = []
+    for cdp in (default_cdp, "http://127.0.0.1:9222"):
+        cdp = str(cdp or "").strip()
+        if cdp and cdp not in cdp_candidates:
+            cdp_candidates.append(cdp)
+
+    last_error = "fast_future_export_failed"
+    for cdp_url in cdp_candidates:
+        env = os.environ.copy()
+        env["OPM_EDGE_CDP_URL"] = cdp_url
+        try:
+            proc = subprocess.run(
+                base_args,
+                check=False,
+                capture_output=True,
+                timeout=60,
+                env=env,
+            )
+        except subprocess.TimeoutExpired:
+            last_error = f"fast_future_export_timeout cdp={cdp_url}"
+            continue
+        out = _decode(proc.stdout or b"").strip()
+        err = _decode(proc.stderr or b"").strip()
+        if proc.returncode == 0:
+            return True, out
+        last_error = (err or out or f"fast_future_export_failed cdp={cdp_url}")
+    return False, last_error
 
 
 def run_fast_single_margin_export(output_file: str) -> tuple[bool, str]:
@@ -1045,7 +1057,9 @@ def run_query(
         report_cpt = "doc/Fdjt/marketOperSup/航空集团经营提升分析/航空集团经营提升分析.frm"
     if (not report_cpt) and ("收入利润概览（调整后）" in str(top.get("report_name") or "")):
         report_cpt = "doc/frm/航空集团收入利润报表/航空集团收入利润概览（调整后）.frm"
+    query_hash = hashlib.md5(str(intent.get("raw_query") or "").encode("utf-8")).hexdigest()[:10]
     generic_live_file = Path(str(top["file_path"])).with_name(f"{Path(str(top['file_path'])).stem}_live.xlsx")
+    future_live_file = Path(str(top["file_path"])).with_name(f"{Path(str(top['file_path'])).stem}_live_{query_hash}.xlsx")
     freshness_force_live = should_force_live_refresh_by_freshness(
         Path(str(top.get("file_path") or "")) if str(top.get("file_path") or "").strip() else None,
         db_path,
@@ -1282,10 +1296,12 @@ def run_query(
             "metric_column": metric_col,
             "live_refresh_ok": live_refresh_ok,
             "live_refresh_error": live_refresh_error,
+            "source_path": str(source_path),
             "answer_text": answer_text,
         }
 
     extracted = extract_table(Path(top["file_path"]))
+    source_path = str(top["file_path"])
     metric_col = resolve_metric_with_filters(intent.get("metric"), extracted.get("columns") or [], filters)
     rows = extracted.get("rows") or []
     filtered = apply_filters(rows, intent, user_scope_cfg=user_scope_cfg, user=user, metric_col=metric_col)
@@ -1305,7 +1321,7 @@ def run_query(
     if force_live_refresh or needs_live_refresh(extracted, metric_col, filtered_count=len(filtered)):
         used_live_refresh = True
         if top["report_name"] == "未来航班客座率票价分析":
-            live_refresh_ok, live_refresh_msg = run_fast_future_kzl_export(intent)
+            live_refresh_ok, live_refresh_msg = run_fast_future_kzl_export(intent, output_file=str(future_live_file))
         elif report_cpt:
             live_refresh_ok, live_refresh_msg = run_generic_live_export(report_cpt, str(generic_live_file), intent)
         else:
@@ -1313,7 +1329,11 @@ def run_query(
         if not live_refresh_ok:
             live_refresh_ok, live_refresh_msg = run_live_refresh(top["report_name"], overwrite="always")
         if live_refresh_ok:
-            source_path = Path(top["file_path"]) if top["report_name"] == "未来航班客座率票价分析" else (generic_live_file if generic_live_file.exists() else Path(top["file_path"]))
+            source_path = str(
+                future_live_file if top["report_name"] == "未来航班客座率票价分析" and future_live_file.exists()
+                else Path(top["file_path"]) if top["report_name"] == "未来航班客座率票价分析"
+                else (generic_live_file if generic_live_file.exists() else Path(top["file_path"]))
+            )
             if generic_live_file.exists():
                 persist_refreshed_output(
                     generic_live_file,
@@ -1512,7 +1532,7 @@ def run_query(
         metric_col,
         filtered,
         top["report_name"],
-        top["file_path"],
+        source_path,
     )
     if relaxed_filters_applied:
         answer_text = f"{answer_text}\n注意: 严格条件无结果，已放宽筛选条件: {', '.join(relaxed_filters_applied)}"
@@ -1542,6 +1562,7 @@ def run_query(
         "live_refresh_error": live_refresh_error,
         "freshness_force_live": freshness_force_live,
         "relaxed_filters_applied": relaxed_filters_applied,
+        "source_path": source_path,
         "answer_text": answer_text,
     }
 

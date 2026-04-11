@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPM 自然语言报表查询 Skill - 业务与技术评审说明</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --ink: #1f2937;
+    --muted: #5b6472;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --success: #166534;
+    --warn: #b45309;
+    --danger: #dc2626;
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.7;
+  }
+  .container {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+  }
+  header {
+    background: linear-gradient(135deg, var(--accent-soft), #ffffff);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 36px 32px;
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+  }
+  header h1 { margin: 0 0 10px; font-size: 30px; }
+  header p { margin: 0; color: var(--muted); font-size: 16px; }
+  .tag-bar { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 13px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .tag.accent { color: var(--accent); border-color: #bfdbfe; background: var(--accent-soft); }
+
+  h2 {
+    margin: 36px 0 14px;
+    font-size: 22px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  h3 { margin: 26px 0 10px; font-size: 18px; color: var(--ink); }
+  p { margin: 10px 0; }
+  ul, ol { margin: 10px 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    box-shadow: var(--shadow);
+    margin: 16px 0;
+  }
+  .card h3 { margin-top: 0; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  th, td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f9fafb; font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+
+  code, pre {
+    font-family: "SF Mono", "Consolas", "Courier New", monospace;
+    font-size: 13px;
+  }
+  code {
+    background: #f3f4f6;
+    padding: 2px 7px;
+    border-radius: 6px;
+    color: var(--danger);
+  }
+  pre {
+    background: #0b1220;
+    color: #e5e7eb;
+    padding: 16px 18px;
+    border-radius: 12px;
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+
+  .step-list {
+    list-style: none;
+    padding-left: 0;
+  }
+  .step-list li {
+    position: relative;
+    padding-left: 34px;
+    margin: 12px 0;
+  }
+  .step-list li::before {
+    content: attr(data-step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.ok { background: #dcfce7; color: var(--success); }
+  .badge.warn { background: #fef3c7; color: var(--warn); }
+  .badge.danger { background: #fee2e2; color: var(--danger); }
+
+  .review-table th { width: 120px; }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>OPM 自然语言报表查询 Skill</h1>
+  <p>业务与技术评审说明文档 &nbsp;|&nbsp; 路径：<code>.codex\skills\opm-nl-report-query</code></p>
+  <div class="tag-bar">
+    <span class="tag accent">OpenClaw Skill</span>
+    <span class="tag">Python 3.13</span>
+    <span class="tag">混合意图解析</span>
+    <span class="tag">本地优先 + 实时兜底</span>
+  </div>
+</header>
+
+<h2>一、项目概述（业务视角）</h2>
+<div class="card">
+  <h3>解决什么问题？</h3>
+  <p>在 OPM（运营绩效管理系统）中，业务人员每天需要打开大量 Excel 报表来回答日常问题。本 Skill 提供一个<strong>自然语言查询入口</strong>，让用户可以直接用“人话”提问，系统自动完成意图理解、报表定位、数据提取与回答生成。</p>
+</div>
+
+<h3>典型支持场景</h3>
+<table>
+  <tr><th>场景示例</th><th>说明</th></tr>
+  <tr><td>我的包干航线的客座率是多少</td><td>按用户身份自动限定包干航线范围，查找客座率</td></tr>
+  <tr><td>海口到北京首都未来两天的客座率和票价</td><td>解析航线、未来时间范围、多指标提取</td></tr>
+  <tr><td>HU7778 明天的余票</td><td>解析航班号、日期、指标</td></tr>
+  <tr><td>未来航班竞航价格差</td><td>识别竞航/竞争对手分析意图</td></tr>
+  <tr><td>各航司净利润同比谁表现得最差</td><td>跨航司同比分析，自动定位经营提升分析报表</td></tr>
+  <tr><td>单机边际贡献 / 小时边际贡献最高航班</td><td>经营指标快速查询与排序</td></tr>
+</table>
+
+<h2>二、核心工作流程</h2>
+<ol class="step-list">
+  <li data-step="1"><strong>意图解析</strong>：规则解析 + 本地 LLM 补槽，输出结构化意图（航线、日期、指标、分析模式）。</li>
+  <li data-step="2"><strong>查询规划</strong>：根据意图路由到报表族，判定是否需要实时刷新数据。</li>
+  <li data-step="3"><strong>数据获取</strong>：优先读取本地 Excel 镜像；若缺失/过期/不匹配，则触发 OPM 实时导出。</li>
+  <li data-step="4"><strong>结构化提取</strong>：从 Excel 中提取表头、行数据，解析出目标指标列。</li>
+  <li data-step="5"><strong>数据过滤</strong>：按航线、日期、航班号、公司、机型、用户包干范围等条件精确过滤。</li>
+  <li data-step="6"><strong>业务分析</strong>：针对特定报表执行分析引擎（如竞航分析、同比排名分析）。</li>
+  <li data-step="7"><strong>答案渲染</strong>：生成面向用户的最终回答文本。</li>
+  <li data-step="8"><strong>OpenClaw 信封</strong>：返回标准化 JSON，供 OpenClaw 统一消费。</li>
+</ol>
+
+<h2>三、技术架构与模块说明</h2>
+
+<h3>3.1 目录结构</h3>
+<pre>
+opm-nl-report-query/
+├── SKILL.md                          # Skill 使用说明
+├── TECH_DESIGN.md                    # 详细技术设计文档
+├── opm_nl_report_query_status.html   # 状态监控页
+├── agents/openai.yaml                # Agent 配置
+├── references/                       # 业务知识配置
+│   ├── synonyms.yaml                 # 指标同义词
+│   ├── column_aliases.yaml           # 指标→列名别名
+│   ├── airport_aliases.yaml          # 机场/城市别名与三字码
+│   ├── component_url_registry.yaml   # 报表组件 URL 绑定
+│   └── user_scope.example.yaml       # 用户包干范围示例
+├── scripts/                          # 核心代码
+│   ├── runner.py                     # ★ OpenClaw 唯一入口
+│   ├── query_opm_nl.py               # 查询执行主逻辑
+│   ├── common.py                     # 公共工具、路径、manifest
+│   ├── parse_query_intent.py         # 意图解析 orchestrator
+│   ├── intent/                       # 意图解析子模块
+│   │   ├── normalize.py              # 查询归一化
+│   │   ├── parser_rules.py           # 规则解析器
+│   │   ├── parser_llm.py             # 本地 LLM 补槽
+│   │   └── validator.py              # 意图合并、校验、机场代码映射
+│   ├── planning/                     # 查询规划
+│   │   ├── router.py                 # 报表族路由
+│   │   ├── refresh_policy.py         # 实时刷新策略
+│   │   └── planner.py                # 生成确定性查询计划
+│   ├── data/                         # 数据层
+│   │   ├── source_loader.py          # 数据源获取（本地/实时）
+│   │   ├── schemas.py                # 报表 Schema 与本地预检
+│   │   └── extractor_registry.py     # 提取器注册
+│   ├── analysis/                     # 业务分析引擎
+│   │   └── future_flight_competition.py
+│   ├── render/                       # 渲染层
+│   │   ├── answer_renderer.py
+│   │   └── failure_renderer.py
+│   └── adapters/
+│       └── openclaw_contract.py      # 输出标准化信封
+└── tests/                            # 测试用例与回归库
+    ├── query_intent_cases.json
+    ├── test_query_intent_regression.py
+    ├── test_planner_schema.py
+    ├── test_future_flight_competition.py
+    ├── test_component_url_registry.py
+    └── ...
+</pre>
+
+<h3>3.2 关键技术设计</h3>
+<div class="grid-2">
+  <div class="card">
+    <h3>混合意图解析</h3>
+    <p><strong>规则解析器</strong>负责高置信度提取：航班号、航线、相对时间词、指标关键词。<br><strong>本地 LLM</strong>仅在规则不完整时补槽，严禁控制执行流程。<br><strong>校验器</strong>合并结果，并将机场别名映射为标准三字码。</p>
+  </div>
+  <div class="card">
+    <h3>时间语义规范化</h3>
+    <p>将口语化时间统一转换为标准结构：</p>
+    <ul>
+      <li><code>明天</code> → <code>single_date</code></li>
+      <li><code>未来两天</code> → <code>relative_future_range</code></li>
+      <li><code>近三天</code> → <code>relative_past_range</code></li>
+      <li><code>4月1日到4月3日</code> → <code>explicit_range</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>报表路由与本地预检</h3>
+    <p>根据意图路由到报表族。对高价值报表定义 Schema 契约，在读取 Excel 前先做<strong>预检</strong>：检查文件存在性、结构满足度、航线/日期匹配度。预检失败即触发实时刷新。</p>
+  </div>
+  <div class="card">
+    <h3>本地优先 + 实时兜底</h3>
+    <p>优先使用 <code>opm_mirror</code> 本地 Excel；当文件缺失、过期（默认 &gt;1小时）、不匹配未来日期时，自动调用 PowerShell/Node 脚本从 OPM 在线系统导出并回写本地。</p>
+  </div>
+</div>
+
+<h3>3.3 OpenClaw 集成合约</h3>
+<div class="card">
+  <p><strong>唯一入口：</strong></p>
+  <pre>python scripts/runner.py "&lt;query&gt;" --user &lt;user&gt; --output-format json</pre>
+  <p>输出标准化 JSON 信封，关键字段包括：</p>
+  <table>
+    <tr><th>字段</th><th>说明</th></tr>
+    <tr><td><code>ok</code></td><td>是否成功</td></tr>
+    <tr><td><code>stage</code></td><td>失败阶段（intent / planning / execution）</td></tr>
+    <tr><td><code>reason_code</code></td><td>机器可读错误码</td></tr>
+    <tr><td><code>intent</code></td><td>解析后的结构化意图</td></tr>
+    <tr><td><code>plan</code></td><td>查询计划（报表族、刷新策略、分析引擎）</td></tr>
+    <tr><td><code>source_meta</code></td><td>数据源元信息（本地文件 / 实时导出）</td></tr>
+    <tr><td><code>analysis_result</code></td><td>分析结果摘要</td></tr>
+    <tr><td><code>answer_text</code></td><td>最终面向用户的回答文本</td></tr>
+    <tr><td><code>message / next_action</code></td><td>失败时的提示与下一步建议</td></tr>
+  </table>
+</div>
+
+<h2>四、测试与质量保障</h2>
+<div class="card">
+  <h3>回归测试</h3>
+  <p><code>tests/query_intent_cases.json</code> 收录了业务验证过的典型问法，新增业务问法时优先在此补充。</p>
+  <pre>python -m unittest discover -s C:\Users\ZhuanZ\.codex\skills\opm-nl-report-query\tests -p "test_*.py" -v</pre>
+</div>
+
+<h3>当前测试覆盖</h3>
+<table>
+  <tr><th>测试文件</th><th>覆盖内容</th></tr>
+  <tr><td>test_query_intent_regression.py</td><td>自然语言意图解析回归</td></tr>
+  <tr><td>test_planner_schema.py</td><td>查询计划与 Schema 校验</td></tr>
+  <tr><td>test_future_flight_competition.py</td><td>竞航分析引擎逻辑</td></tr>
+  <tr><td>test_component_url_registry.py</td><td>组件 URL 绑定与参数渲染</td></tr>
+  <tr><td>test_extractor_registry.py</td><td>提取器注册表</td></tr>
+  <tr><td>test_source_loader.py</td><td>数据源加载逻辑</td></tr>
+  <tr><td>test_runner_contract.py</td><td>OpenClaw 输出合约</td></tr>
+</table>
+
+<div class="card">
+  <h3>已知未覆盖</h3>
+  <ul>
+    <li>依赖 OPM 登录态的<strong>实时导出链路</strong>（需要在线环境）</li>
+    <li>依赖本地 Excel 镜像的<strong>端到端查询结果校验</strong></li>
+  </ul>
+</div>
+
+<h2>五、设计原则与约束</h2>
+<div class="card">
+  <ol>
+    <li><strong>结构化输出优先</strong>：所有中间结果都有机器可读的 JSON Schema，不直接丢原始 Excel 给调用方。</li>
+    <li><strong>编排必须确定性</strong>：<code>runner.py</code> 的调用链是固定的，不允许 LLM 决定执行流程。</li>
+    <li><strong>LLM 仅辅助解析</strong>：本地小模型只能做 slot filling，不能选报表、不能读 Excel、不能推断不存在的事实。</li>
+    <li><strong>报表特定逻辑模块化</strong>：竞航分析、经营提升分析等都有自己的 <code>analysis/*.py</code> 模块。</li>
+    <li><strong>失败原因机器可读</strong>：统一使用 <code>reason_code</code>（如 <code>route_not_found_in_report</code>、<code>live_refresh_failed</code>）。</li>
+    <li><strong>避免过度特化</strong>：新增能力必须抽象为可复用的语义槽或枚举，不允许为某个特定短语写死逻辑。</li>
+  </ol>
+</div>
+
+<h2>六、运维与使用方式</h2>
+<div class="grid-2">
+  <div class="card">
+    <h3>构建报表目录</h3>
+    <p>首次使用或新增报表后，需要重建 catalog：</p>
+    <pre>python scripts\build_report_catalog.py</pre>
+  </div>
+  <div class="card">
+    <h3>OpenClaw 调用示例</h3>
+    <pre>python scripts\runner.py "我的包干航线的客座率是多少" --user zhuanz --output-format json</pre>
+  </div>
+  <div class="card">
+    <h3>配置本地意图 LLM（可选）</h3>
+    <pre>$env:OPM_NL_INTENT_LLM_COMMAND = "your-local-intent-parser-command"</pre>
+  </div>
+  <div class="card">
+    <h3>实时刷新兜底</h3>
+    <p>当本地数据不满足时，Skill 自动调用 <code>export_report_live.ps1</code>。若登录态失效，会引导用户扫码重新登录。</p>
+  </div>
+</div>
+
+<h2>七、评审结论建议</h2>
+<table class="review-table">
+  <tr><th>维度</th><th>评审结论</th></tr>
+  <tr>
+    <td>业务价值</td>
+    <td><span class="badge ok">高</span> 将自然语言直接映射到 OPM 报表数据，显著降低业务人员“找报表、看 Excel”的门槛。</td>
+  </tr>
+  <tr>
+    <td>架构合理性</td>
+    <td><span class="badge ok">合理</span> “规则为主 + LLM 补槽”避免纯 LLM 不稳定；本地优先 + 实时兜底兼顾速度与准确性。</td>
+  </tr>
+  <tr>
+    <td>可维护性</td>
+    <td><span class="badge ok">良好</span> 模块职责清晰（intent / planning / data / analysis / render / adapters），新增报表分析只需在对应模块扩展。</td>
+  </tr>
+  <tr>
+    <td>测试覆盖</td>
+    <td><span class="badge warn">中等偏上</span> 意图解析和核心模块有回归测试，但实时导出和端到端查询尚缺自动化覆盖，建议在 CI 中补充集成测试。</td>
+  </tr>
+  <tr>
+    <td>集成规范</td>
+    <td><span class="badge ok">明确</span> OpenClaw 通过单一入口 <code>runner.py</code> 调用，输出标准化 JSON 信封，符合 Skill 合约要求。</td>
+  </tr>
+</table>
+
+<div class="footer">
+  文档生成于 2026-04-01 &nbsp;|&nbsp; 基于 <code>opm-nl-report-query</code> 代码阅读整理
+</div>
+
+</div>
+</body>
+</html>
