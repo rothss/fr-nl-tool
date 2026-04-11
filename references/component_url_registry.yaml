@@ -4,7 +4,7 @@ components:
       - "单机边际贡献"
       - "边际贡献"
       - "单机边贡"
-    viewlet: "/doc/Fdjt/marketOperSup/航空集团经营提升分析/2单机边际贡献-宽体机.cpt"
+    viewlet: "Fdjt/marketOperSup/航空集团经营提升分析/2单机边际贡献-宽体机.cpt"
     op: "form_adaptive"
     parameter_map:
       date_s: "{date_start}"

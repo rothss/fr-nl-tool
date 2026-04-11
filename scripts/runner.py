@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 
 from adapters.openclaw_contract import to_openclaw_result
-from common import default_catalog_db, default_mirror_root, default_profile_db
+from common import (
+    default_catalog_db,
+    default_mirror_root,
+    default_profile_db,
+    references_dir,
+)
 from data.catalog import find_report_candidates, load_catalog
 from data.extractor_registry import extract_rows_for_report, get_analysis_engine
 from data.schemas import probe_local_file_against_intent
@@ -17,27 +22,64 @@ from query_opm_nl import run_query as execute_query
 from render.answer_renderer import render_answer_text
 
 
+def ensure_user_scope(path: Path) -> Path:
+    """确保 user_scope.yaml 存在，如果不存在则创建默认文件。"""
+    if path.exists():
+        return path
+    # 创建目录
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # 复制示例文件内容
+    example_path = references_dir() / "user_scope.example.yaml"
+    default_content = (
+        example_path.read_text(encoding="utf-8")
+        if example_path.exists()
+        else "default_user: default\nusers:\n  default:\n    包干航线:\n      航段: []\n      航班号: []\n"
+    )
+    path.write_text(default_content, encoding="utf-8")
+    return path
+
+
 def build_plan(intent: dict, query_result: dict) -> dict:
     top = query_result.get("top_candidate") or {}
-    local_probe = probe_local_file_against_intent(top.get("file_path"), top.get("report_name"), intent) if top else None
+    local_probe = (
+        probe_local_file_against_intent(
+            top.get("file_path"), top.get("report_name"), intent
+        )
+        if top
+        else None
+    )
     plan = build_schema_aware_plan(intent, local_probe=local_probe)
     plan["report_name"] = top.get("report_name") or plan.get("report_name")
     plan["report_path"] = top.get("file_path") or plan.get("report_path")
-    if query_result.get("used_live_refresh") and "used_live_refresh" not in plan["rationale"]:
+    if (
+        query_result.get("used_live_refresh")
+        and "used_live_refresh" not in plan["rationale"]
+    ):
         plan["rationale"].append("used_live_refresh")
-    if query_result.get("freshness_force_live") and "freshness_force_live" not in plan["rationale"]:
+    if (
+        query_result.get("freshness_force_live")
+        and "freshness_force_live" not in plan["rationale"]
+    ):
         plan["rationale"].append("freshness_force_live")
     if query_result.get("live_refresh_error"):
-        plan["fallback_plans"] = list(plan.get("fallback_plans") or []) + [{"type": "retry_live_refresh"}]
+        plan["fallback_plans"] = list(plan.get("fallback_plans") or []) + [
+            {"type": "retry_live_refresh"}
+        ]
     if not plan.get("report_name"):
-        plan["fallback_plans"] = list(plan.get("fallback_plans") or []) + [{"type": "refine_query"}]
+        plan["fallback_plans"] = list(plan.get("fallback_plans") or []) + [
+            {"type": "refine_query"}
+        ]
     return plan
 
 
 def build_source_meta(query_result: dict) -> dict | None:
     top = query_result.get("top_candidate") or {}
     plan = query_result.get("plan") or {}
-    source_path = query_result.get("source_path") or top.get("file_path") or plan.get("report_path")
+    source_path = (
+        query_result.get("source_path")
+        or top.get("file_path")
+        or plan.get("report_path")
+    )
     if not top and not query_result.get("live_refresh_error") and not source_path:
         return None
     acquire_payload = dict(query_result)
@@ -63,7 +105,9 @@ def build_analysis_result(query_result: dict) -> dict | None:
         matched_route = f"{filters.get('segment_from')}-{filters.get('segment_to')}"
     return {
         "ok": True,
-        "analysis_engine": build_plan(query_result.get("intent") or {}, query_result).get("analysis_engine"),
+        "analysis_engine": build_plan(
+            query_result.get("intent") or {}, query_result
+        ).get("analysis_engine"),
         "matched_route": matched_route,
         "matched_dates": matched_dates,
         "issues": [],
@@ -84,7 +128,9 @@ def apply_plan_aware_postprocess(query_result: dict) -> dict:
 
     if query_result.get("live_refresh_error"):
         query_result["reason"] = "live_refresh_failed"
-        query_result["message"] = f"实时刷新失败: {query_result.get('live_refresh_error')}"
+        query_result["message"] = (
+            f"实时刷新失败: {query_result.get('live_refresh_error')}"
+        )
         return query_result
 
     blocked, reason, message = should_block_on_preflight(plan, source_meta)
@@ -99,20 +145,28 @@ def apply_plan_aware_postprocess(query_result: dict) -> dict:
 def resolve_top_candidate(intent: dict, db_path: Path) -> dict | None:
     catalog = load_catalog(db_path)
     routed = route_report_family(intent)
-    preferred_names = [str(item.get("report_name") or "").strip() for item in routed if str(item.get("report_name") or "").strip()]
+    preferred_names = [
+        str(item.get("report_name") or "").strip()
+        for item in routed
+        if str(item.get("report_name") or "").strip()
+    ]
     seen_names: set[str] = set()
     for report_name in preferred_names:
         if report_name in seen_names:
             continue
         seen_names.add(report_name)
-        candidates = find_report_candidates(intent, catalog, preferred_report_name=report_name, top_n=3)
+        candidates = find_report_candidates(
+            intent, catalog, preferred_report_name=report_name, top_n=3
+        )
         if candidates:
             return candidates[0]
     candidates = find_report_candidates(intent, catalog, top_n=3)
     return candidates[0] if candidates else None
 
 
-def build_initial_plan(intent: dict, top_candidate: dict | None) -> tuple[dict, dict | None]:
+def build_initial_plan(
+    intent: dict, top_candidate: dict | None
+) -> tuple[dict, dict | None]:
     local_probe = None
     if top_candidate:
         local_probe = probe_local_file_against_intent(
@@ -122,9 +176,13 @@ def build_initial_plan(intent: dict, top_candidate: dict | None) -> tuple[dict, 
         )
     plan = build_schema_aware_plan(intent, local_probe=local_probe)
     if top_candidate:
-        plan["report_name"] = top_candidate.get("report_name") or plan.get("report_name")
+        plan["report_name"] = top_candidate.get("report_name") or plan.get(
+            "report_name"
+        )
         plan["report_path"] = top_candidate.get("file_path") or plan.get("report_path")
-        plan["candidate_score"] = top_candidate.get("score", plan.get("candidate_score"))
+        plan["candidate_score"] = top_candidate.get(
+            "score", plan.get("candidate_score")
+        )
     return plan, local_probe
 
 
@@ -135,11 +193,23 @@ def try_local_pipeline(intent: dict, plan: dict, source_meta: dict) -> dict | No
         if not source_meta.get("refreshed"):
             return None
     report_name = str(plan.get("report_name") or "")
-    analysis_mode = str(((intent.get("structured_intent") or {}).get("analysis") or {}).get("mode") or (intent.get("filters") or {}).get("analysis_mode") or "")
+    analysis_mode = str(
+        ((intent.get("structured_intent") or {}).get("analysis") or {}).get("mode")
+        or (intent.get("filters") or {}).get("analysis_mode")
+        or ""
+    )
     filters = intent.get("filters") or {}
-    if report_name == "航空集团前十后十航班" and bool(filters.get("first_flight")) and str(filters.get("rank_scope") or "") == "后十":
+    if (
+        report_name == "航空集团前十后十航班"
+        and bool(filters.get("first_flight"))
+        and str(filters.get("rank_scope") or "") == "后十"
+    ):
         analysis_mode = "first_flight_bottom10"
-    elif report_name == "航空集团前十后十航班" and str(filters.get("extreme") or "") == "best" and str(intent.get("metric") or "") in {"小时边际贡献", "总边贡"}:
+    elif (
+        report_name == "航空集团前十后十航班"
+        and str(filters.get("extreme") or "") == "best"
+        and str(intent.get("metric") or "") in {"小时边际贡献", "总边贡"}
+    ):
         analysis_mode = "top_metric_flight"
     analyzer = get_analysis_engine(report_name, analysis_mode=analysis_mode)
     if analyzer is None:
@@ -192,7 +262,9 @@ def run_query(
 ) -> dict:
     mirror = mirror_root or default_mirror_root()
     db = db_path or default_catalog_db()
-    user_scope = user_scope_path or (default_mirror_root() / "search_index" / "user_scope.yaml")
+    user_scope = ensure_user_scope(
+        user_scope_path or (default_mirror_root() / "search_index" / "user_scope.yaml")
+    )
     profile = profile_db or default_profile_db()
 
     intent = parse_query(query)
@@ -250,14 +322,19 @@ def run_query(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Structured OpenClaw entrypoint for OPM NL query.")
+    parser = argparse.ArgumentParser(
+        description="Structured OpenClaw entrypoint for OPM NL query."
+    )
     parser.add_argument("query", help="Natural-language query")
     parser.add_argument("--user", help="User id for owner scope resolution")
     parser.add_argument("--mirror-root", default=str(default_mirror_root()))
     parser.add_argument("--db", default=str(default_catalog_db()))
     parser.add_argument("--excel-index", help="Path to excel_index.db (optional)")
     parser.add_argument("--profile-db", help="Path to report_profiles.db (optional)")
-    parser.add_argument("--user-scope", default=str(default_mirror_root() / "search_index" / "user_scope.yaml"))
+    parser.add_argument(
+        "--user-scope",
+        default=str(default_mirror_root() / "search_index" / "user_scope.yaml"),
+    )
     parser.add_argument("--output-format", choices=("json", "text"), default="json")
     args = parser.parse_args()
 
@@ -274,7 +351,10 @@ def main() -> None:
         if result.get("ok"):
             print(result.get("answer_text") or "")
         else:
-            print(result.get("message") or json.dumps(result, ensure_ascii=False, indent=2))
+            print(
+                result.get("message")
+                or json.dumps(result, ensure_ascii=False, indent=2)
+            )
         return
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

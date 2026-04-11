@@ -294,13 +294,12 @@ FR_INTENT_LLM_COMMAND=</pre>
     </ul>
   </div>
 
-  <div class="card" style="border-left:4px solid var(--yellow);">
-    <h3 style="margin-top:0;">Phase 2：finereport-search 解耦（2天）</h3>
+  <div class="card" style="border-left:4px solid var(--green);">
+    <h3 style="margin-top:0;">Phase 2：数据层配置化（1天）✅ 已完成</h3>
     <ul class="checklist">
-      <li class="c-missing">将 <code>finereport-search</code> 路径改为 <code>FR_BUILD_INDEX_PY</code> 环境变量</li>
-      <li class="c-missing">未配置时降级为仅目录库搜索（跳过 Excel 全文索引）</li>
-      <li class="c-missing">编写简化版 <code>scripts/build_excel_index.py</code></li>
-      <li class="c-missing">更新 <code>excel_index_candidates.py</code> 的 fallback 逻辑</li>
+      <li class="c-done"><code>runner.py</code>: 添加 <code>ensure_user_scope()</code> 自动创建逻辑</li>
+      <li class="c-done"><code>component_url_registry.yaml</code>: viewlet 路径改为相对路径（移除 <code>/doc/</code> 前缀）</li>
+      <li class="c-done"><code>report_schemas.yaml</code> / <code>intent_examples.json</code>: 无硬编码路径，无需修改</li>
     </ul>
   </div>
 
@@ -406,7 +405,7 @@ See `examples/opm/` for a complete domain-specific reference.</pre>
 </div>
 
 <div class="footer">
-  <p>生成时间：2026-04-11 | 更新：2026-04-11 10:45（Phase 0 + Phase 1 部分完成：dotenv配置化、FR_*环境变量、.gitignore）</p>
+  <p>生成时间：2026-04-11 | 更新：2026-04-11 16:00（Phase 0-2 完成：dotenv配置化、FR_*环境变量、user_scope自动创建、组件URL相对路径）</p>
 </div>
 
 </div>
