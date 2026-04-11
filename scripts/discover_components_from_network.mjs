@@ -5,9 +5,9 @@ const require = createRequire(import.meta.url);
 
 function parseArgs(argv) {
   const opts = {
-    cdpUrl: process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9333",
-    baseUrl: process.env.OPM_BASE_URL || "https://opm.hnair.net/webroot/decision",
-    batchRoot: process.env.OPM_BATCH_ROOT || "C:/Users/ZhuanZ/opm_batch",
+    cdpUrl: process.env.FR_CDP_URL || process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9222",
+    baseUrl: process.env.FR_BASE_URL || process.env.OPM_BASE_URL || "http://localhost:8075/webroot/decision",
+    batchRoot: process.env.FR_BATCH_ROOT || process.env.OPM_BATCH_ROOT || "./fr_batch",
     reportPath: "",
     waitMs: 25000,
   };
@@ -117,7 +117,7 @@ async function run() {
       return Array.from(new Set(out)).slice(0, 2000);
     });
     for (const v of clientLinks) {
-      const fakeUrl = `https://opm.hnair.net/webroot/decision/view/report?viewlet=${v}`;
+      const fakeUrl = `${opts.baseUrl}/view/report?viewlet=${v}`;
       const info = parseFromUrl(fakeUrl);
       if (info) {
         info.source = "html";

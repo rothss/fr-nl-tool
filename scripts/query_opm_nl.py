@@ -276,7 +276,7 @@ def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> 
                 continue
         return raw.decode("utf-8", errors="ignore")
 
-    default_cdp = str(os.environ.get("OPM_EDGE_CDP_URL") or "http://127.0.0.1:9333").strip()
+    default_cdp = str(os.environ.get("FR_CDP_URL") or os.environ.get("OPM_EDGE_CDP_URL") or "http://127.0.0.1:9222").strip()
     cdp_candidates: list[str] = []
     for cdp in (default_cdp, "http://127.0.0.1:9222"):
         cdp = str(cdp or "").strip()
@@ -286,7 +286,8 @@ def run_fast_future_kzl_export(intent: dict, output_file: str | None = None) -> 
     last_error = "fast_future_export_failed"
     for cdp_url in cdp_candidates:
         env = os.environ.copy()
-        env["OPM_EDGE_CDP_URL"] = cdp_url
+        env["FR_CDP_URL"] = cdp_url
+        env["OPM_EDGE_CDP_URL"] = cdp_url  # backward compat
         try:
             proc = subprocess.run(
                 base_args,

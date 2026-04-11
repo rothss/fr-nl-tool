@@ -6,11 +6,11 @@ const require = createRequire(import.meta.url);
 
 function parseArgs(argv) {
   const opts = {
-    cdpUrl: process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9333",
-    baseUrl: process.env.OPM_BASE_URL || "https://opm.hnair.net/webroot/decision",
+    cdpUrl: process.env.FR_CDP_URL || process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9222",
+    baseUrl: process.env.FR_BASE_URL || process.env.OPM_BASE_URL || "http://localhost:8075/webroot/decision",
     reportPath: "doc/Fdjt/市场监督/客座率监控/未来航班客座率票价分析-PG库.cpt",
-    outputFile: "C:/Users/ZhuanZ/opm_mirror/包干航线/未来航班客座率票价分析.xlsx",
-    batchRoot: process.env.OPM_BATCH_ROOT || "C:/Users/ZhuanZ/opm_batch",
+    outputFile: process.env.FR_MIRROR_ROOT ? `${process.env.FR_MIRROR_ROOT}/包干航线/未来航班客座率票价分析.xlsx` : "C:/Users/ZhuanZ/opm_mirror/包干航线/未来航班客座率票价分析.xlsx",
+    batchRoot: process.env.FR_BATCH_ROOT || process.env.OPM_BATCH_ROOT || "./fr_batch",
     waitMs: 6000,
     dateStart: "",
     dateEnd: "",
@@ -120,7 +120,10 @@ function looksLikeLoginPage(url, title, bodyText) {
   const u = String(url || "");
   const t = String(title || "");
   const body = String(bodyText || "");
+  // Configurable login detection via FR_LOGIN_PATTERNS env var (pipe-separated)
+  const patterns = (process.env.FR_LOGIN_PATTERNS || "login|统一登录平台|请先登录|unauthorized").split("|");
   return (
+    patterns.some((p) => u.includes(p) || t.includes(p) || body.includes(p)) ||
     u.includes("login.hnagroup.com") ||
     t.includes("统一登录平台") ||
     body.includes("扫码登录") ||

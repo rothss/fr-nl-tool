@@ -192,7 +192,7 @@ def run_query(
 ) -> dict:
     mirror = mirror_root or default_mirror_root()
     db = db_path or default_catalog_db()
-    user_scope = user_scope_path or Path(r"C:\Users\ZhuanZ\opm_mirror\search_index\user_scope.yaml")
+    user_scope = user_scope_path or (default_mirror_root() / "search_index" / "user_scope.yaml")
     profile = profile_db or default_profile_db()
 
     intent = parse_query(query)
@@ -257,7 +257,7 @@ def main() -> None:
     parser.add_argument("--db", default=str(default_catalog_db()))
     parser.add_argument("--excel-index", help="Path to excel_index.db (optional)")
     parser.add_argument("--profile-db", help="Path to report_profiles.db (optional)")
-    parser.add_argument("--user-scope", default=r"C:\Users\ZhuanZ\opm_mirror\search_index\user_scope.yaml")
+    parser.add_argument("--user-scope", default=str(default_mirror_root() / "search_index" / "user_scope.yaml"))
     parser.add_argument("--output-format", choices=("json", "text"), default="json")
     args = parser.parse_args()
 

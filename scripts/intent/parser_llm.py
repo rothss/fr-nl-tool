@@ -27,7 +27,7 @@ def _extract_json_object(text: str) -> dict | None:
 
 class LLMIntentParser:
     def __init__(self, command: str | None = None) -> None:
-        self.command = command or os.environ.get("OPM_NL_INTENT_LLM_COMMAND", "").strip()
+        self.command = command or os.environ.get("FR_INTENT_LLM_COMMAND", os.environ.get("OPM_NL_INTENT_LLM_COMMAND", "")).strip()
 
     @property
     def enabled(self) -> bool:

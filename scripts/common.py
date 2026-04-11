@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, rely on system env vars
 
 
 def skill_root() -> Path:
@@ -15,7 +23,11 @@ def references_dir() -> Path:
 
 
 def default_mirror_root() -> Path:
-    return Path(r"C:\Users\ZhuanZ\opm_mirror")
+    env_root = os.environ.get("FR_MIRROR_ROOT", "")
+    if env_root:
+        return Path(env_root)
+    # Fallback for backward compatibility
+    return Path(os.environ.get("OPM_MIRROR_ROOT", "./fr_mirror"))
 
 
 def default_catalog_db() -> Path:

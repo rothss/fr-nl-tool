@@ -6,14 +6,14 @@ const require = createRequire(import.meta.url);
 
 function parseArgs(argv) {
   const opts = {
-    cdpUrl: process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9333",
-    baseUrl: process.env.OPM_BASE_URL || "https://opm.hnair.net/webroot/decision",
+    cdpUrl: process.env.FR_CDP_URL || process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9222",
+    baseUrl: process.env.FR_BASE_URL || process.env.OPM_BASE_URL || "http://localhost:8075/webroot/decision",
     reportPath: "",
     outputFile: "",
-    batchRoot: process.env.OPM_BATCH_ROOT || "C:/Users/ZhuanZ/opm_batch",
+    batchRoot: process.env.FR_BATCH_ROOT || process.env.OPM_BATCH_ROOT || "./fr_batch",
     waitMs: 5000,
     filtersJson: "{}",
-    domProfileDir: process.env.OPM_DOM_PROFILE_DIR || "C:/Users/ZhuanZ/opm_mirror/search_index/dom_profiles",
+    domProfileDir: process.env.FR_DOM_PROFILE_DIR || process.env.OPM_DOM_PROFILE_DIR || "./fr_mirror/search_index/dom_profiles",
   };
   const next = (i) => {
     if (i + 1 >= argv.length) throw new Error(`Missing value for ${argv[i]}`);

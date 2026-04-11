@@ -91,12 +91,12 @@
 
 <table>
   <tr><th>文件</th><th>用途</th><th>操作</th></tr>
-  <tr><td><code>install-hermes.ps1</code></td><td>从 GitHub 安装 hermes-agent 到 WSL</td><td><span class="tag t-easy">删除</span></td></tr>
-  <tr><td><code>setup-hermes.bat</code></td><td>WSL 中运行 hermes setup</td><td><span class="tag t-easy">删除</span></td></tr>
-  <tr><td><code>start-hermes.bat</code></td><td>WSL 中启动 hermes</td><td><span class="tag t-easy">删除</span></td></tr>
-  <tr><td><code>check-hermes.sh</code></td><td>WSL 中验证 hermes 环境</td><td><span class="tag t-easy">删除</span></td></tr>
-  <tr><td><code>启动 Hermes.bat</code></td><td>中文版启动脚本</td><td><span class="tag t-easy">删除</span></td></tr>
-  <tr><td><code>配置 Hermes.bat</code></td><td>中文版配置脚本</td><td><span class="tag t-easy">删除</span></td></tr>
+  <tr><td><code>install-hermes.ps1</code></td><td>从 GitHub 安装 hermes-agent 到 WSL</td><td><span class="tag t-easy">✓ 已删除</span></td></tr>
+  <tr><td><code>setup-hermes.bat</code></td><td>WSL 中运行 hermes setup</td><td><span class="tag t-easy">✓ 已删除</span></td></tr>
+  <tr><td><code>start-hermes.bat</code></td><td>WSL 中启动 hermes</td><td><span class="tag t-easy">✓ 已删除</span></td></tr>
+  <tr><td><code>check-hermes.sh</code></td><td>WSL 中验证 hermes 环境</td><td><span class="tag t-easy">✓ 已删除</span></td></tr>
+  <tr><td><code>启动 Hermes.bat</code></td><td>中文版启动脚本</td><td><span class="tag t-easy">✓ 已删除</span></td></tr>
+  <tr><td><code>配置 Hermes.bat</code></td><td>中文版配置脚本</td><td><span class="tag t-easy">✓ 已删除</span></td></tr>
 </table>
 
 <!-- ========== 第二部分：内部URL配置化 ========== -->
@@ -270,25 +270,25 @@ FR_INTENT_LLM_COMMAND=</pre>
 
 <div class="card-grid">
   <div class="card" style="border-left:4px solid var(--green);">
-    <h3 style="margin-top:0;">Phase 0：立即可做（0.5天）</h3>
+    <h3 style="margin-top:0;">Phase 0：立即可做（0.5天）✅ 已完成</h3>
     <ul class="checklist">
-      <li class="c-missing">删除 6 个 Hermes 文件</li>
-      <li class="c-missing">创建 <code>.env.example</code>（含所有环境变量）</li>
-      <li class="c-missing">在 <code>common.py</code> 中引入 dotenv（<code>python-dotenv</code>）</li>
-      <li class="c-missing">将环境变量名从 <code>OPM_*</code> 重命名为 <code>FR_*</code></li>
-      <li class="c-missing">更新 <code>.gitignore</code>（添加 <code>.env</code>、<code>fr_mirror/</code> 等）</li>
+      <li class="c-done">删除 6 个 Hermes 文件</li>
+      <li class="c-done">创建 <code>.env.example</code>（含所有环境变量）</li>
+      <li class="c-done">在 <code>common.py</code> 中引入 dotenv（<code>python-dotenv</code>）</li>
+      <li class="c-done">将环境变量名从 <code>OPM_*</code> 重命名为 <code>FR_*</code>（向后兼容）</li>
+      <li class="c-done">更新 <code>.gitignore</code>（添加 <code>.env</code>、<code>fr_mirror/</code> 等）</li>
     </ul>
   </div>
 
   <div class="card" style="border-left:4px solid var(--green);">
-    <h3 style="margin-top:0;">Phase 1：低风险配置化（1天）</h3>
+    <h3 style="margin-top:0;">Phase 1：低风险配置化（1天）🔄 部分完成</h3>
     <ul class="checklist">
-      <li class="c-missing">替换 <code>query_opm_nl.py:506</code> 硬编码 URL</li>
+      <li class="c-done">替换 <code>query_opm_nl.py:506</code> 硬编码 URL</li>
       <li class="c-missing">替换 <code>export_components_and_index.py:53</code> 硬编码 URL</li>
-      <li class="c-missing">替换 <code>common.py:18</code> 硬编码 mirror 路径</li>
-      <li class="c-missing">替换所有 <code>C:\Users\ZhuanZ\opm_mirror</code> 硬编码路径</li>
-      <li class="c-missing">替换 <code>export_future_kzl_live.mjs:124</code> CAS 登录检测</li>
-      <li class="c-missing">更新所有 .mjs 中的环境变量名</li>
+      <li class="c-done">替换 <code>common.py:18</code> 硬编码 mirror 路径</li>
+      <li class="c-done">更新 <code>runner.py</code> 硬编码路径</li>
+      <li class="c-done">替换 <code>export_future_kzl_live.mjs</code> CAS 登录检测为可配置</li>
+      <li class="c-done">更新所有 .mjs 中的环境变量名（FR_* + 向后兼容 OPM_*）</li>
     </ul>
   </div>
 
@@ -404,7 +404,7 @@ See `examples/opm/` for a complete domain-specific reference.</pre>
 </div>
 
 <div class="footer">
-  <p>生成时间：2026-04-11 | 基于 opm-nl-report-query 项目全量代码分析</p>
+  <p>生成时间：2026-04-11 | 更新：2026-04-11 10:45（Phase 0 + Phase 1 部分完成：dotenv配置化、FR_*环境变量、.gitignore）</p>
 </div>
 
 </div>

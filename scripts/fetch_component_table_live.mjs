@@ -5,8 +5,8 @@ const require = createRequire(import.meta.url);
 
 function parseArgs(argv) {
   const opts = {
-    cdpUrl: process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9333",
-    batchRoot: process.env.OPM_BATCH_ROOT || "C:/Users/ZhuanZ/opm_batch",
+    cdpUrl: process.env.FR_CDP_URL || process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9222",
+    batchRoot: process.env.FR_BATCH_ROOT || process.env.OPM_BATCH_ROOT || "./fr_batch",
     componentUrl: "",
     waitMs: 5000,
   };
