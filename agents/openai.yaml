@@ -1,6 +1,6 @@
 interface:
-  display_name: "OPM NL Report Query"
-  short_description: "Natural-language OPM metric report query"
-  default_prompt: "Use $fr-nl-report-query to answer natural-language OPM KPI questions by parsing intent, ranking matching reports, extracting structured rows, and returning metric values with source context."
+  display_name: "FineReport NL Query Skill (OPM Example)"
+  short_description: "Natural-language FineReport metric query with an OPM example profile"
+  default_prompt: "Use $fr-nl-report-query to answer natural-language FineReport KPI questions by parsing intent, ranking matching reports, extracting structured rows, and returning metric values with source context. Treat the built-in OPM content as an example profile, not a universal dataset."
 policy:
   allow_implicit_invocation: true

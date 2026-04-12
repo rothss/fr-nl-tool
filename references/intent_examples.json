@@ -13,7 +13,7 @@
     "expected_report_family": "ranked_flights"
   },
   {
-    "query": "HU7778明天的余票",
+    "query": "DEMO1001明天的余票",
     "expected_report_family": "route_metric_lookup"
   }
 ]

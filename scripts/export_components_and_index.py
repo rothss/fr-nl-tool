@@ -228,18 +228,22 @@ def main() -> None:
                 build_index_py = Path(__file__).parent.parent / build_index_env
         else:
             build_index_py = Path(__file__).parent.parent / "scripts" / "build_index.py"
-        ok_idx, idx_out = _run(
-            [
-                "python",
-                str(build_index_py),
-                "--root",
-                str(mirror_root),
-                "--db",
-                str(excel_db),
-                "--incremental",
-            ],
-            timeout=3600,
-        )
+        if not build_index_py.exists():
+            ok_idx = False
+            idx_out = "incremental_index_builder_missing: configure FR_BUILD_INDEX_PY to enable component export reindex"
+        else:
+            ok_idx, idx_out = _run(
+                [
+                    "python",
+                    str(build_index_py),
+                    "--root",
+                    str(mirror_root),
+                    "--db",
+                    str(excel_db),
+                    "--incremental",
+                ],
+                timeout=3600,
+            )
         index_result = {"ok": ok_idx, "output": idx_out[-4000:]}
 
     print(

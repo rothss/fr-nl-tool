@@ -1,28 +1,35 @@
 ---
 name: fr-nl-report-query
-description: Answer natural-language OPM KPI questions by parsing intent, ranking matching reports, extracting structured table rows from local OPM mirror Excel files, and optionally falling back to live export. Use when users ask questions like "我的包干航线的客座率是多少", "HU7778明天的余票", or "未来航班竞航价格差".
+description: Answer natural-language FineReport KPI questions by parsing intent, ranking matching reports, extracting structured table rows from local mirror Excel files, and optionally falling back to live export. This repository currently ships with an OPM-focused example profile.
 ---
 
-# OPM NL Report Query
+# FineReport NL Query Skill (OPM Example)
 
-Use this skill to bridge business-language questions and OPM report data retrieval.
+Use this skill to bridge business-language questions and FineReport-based report data retrieval. This repository currently includes an OPM-focused example profile.
 
 ## Quick Start
 
 Build report catalog:
 
 ```powershell
-python C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\build_report_catalog.py
+python scripts/build_report_catalog.py
 ```
 
 Query by natural language:
 
 ```powershell
-python C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\runner.py "我的包干航线的客座率是多少" --user zhuanz --output-format json
+python scripts/runner.py "我的示例范围内航线的客座率是多少" --user demo_user --output-format json
 ```
 
 For OpenClaw integration, always call the skill through `scripts\runner.py`, not `query_fr_nl.py` directly.
 `runner.py` is the stable skill contract and returns the structured envelope OpenClaw should consume.
+
+## Capability Boundary
+
+1. This repository supports an offline query path when local mirror files and catalog data are already available.
+2. Live refresh and component export are optional enhancement paths, not guaranteed defaults.
+3. If live refresh is needed, callers must provide compatible FineReport access plus any external helper tools required by their environment.
+4. Callers should treat structured failure responses as terminal for the current invocation and should not inspect Excel files directly.
 
 ## Workflow
 
@@ -48,7 +55,7 @@ For OpenClaw integration, always call the skill through `scripts\runner.py`, not
 If you want a local small model to help with slot filling, set:
 
 ```powershell
-$env:OPM_NL_INTENT_LLM_COMMAND = "your-local-intent-parser-command"
+$env:FR_INTENT_LLM_COMMAND = "your-local-intent-parser-command"
 ```
 
 The command must read JSON from stdin and print JSON to stdout.
@@ -59,15 +66,15 @@ It is used only to fill missing intent slots and is optional; the skill works wi
 If local file is missing, stale, or contains header-only export, call:
 
 ```powershell
-pwsh -NoProfile -File C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\export_report_live.ps1 -ReportName "未来航班客座率票价分析"
+pwsh -NoProfile -File scripts/export_report_live.ps1 -ReportName "未来航班客座率票价分析"
 ```
 
-This wrapper delegates to existing OPM download/export scripts. If login is invalid, open fixed-profile Edge and ask the user to scan QR.
+This wrapper is optional. It requires a compatible external refresh tool configured through `FR_REFRESH_TOOL_ROOT` plus a valid FineReport environment.
 
 Generic exporter:
 
 ```powershell
-node C:\Users\ZhuanZ\.codex\skills\fr-nl-report-query\scripts\export_report_generic_live.mjs --report-path "doc/Fdjt/xxx.cpt" --output-file "C:/Users/ZhuanZ/opm_mirror/tmp/live.xlsx" --filters-json "{\"flight_date\":[\"2026-03-29\"],\"company\":\"航空股份\"}"
+node scripts/export_report_generic_live.mjs --report-path "doc/Fdjt/xxx.cpt" --output-file "$env:FR_TMP_DIR/live.xlsx" --filters-json "{\"flight_date\":[\"2026-03-29\"],\"company\":\"航空股份\"}"
 ```
 
 ## References

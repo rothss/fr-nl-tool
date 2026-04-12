@@ -5,6 +5,7 @@
 
 # Local data mirrors
 fr_mirror/
+examples/demo_mirror/
 *.db
 
 # Batch output
@@ -32,11 +33,6 @@ Thumbs.db
 
 # Logs
 *.log
-
-# Tests
-tests/
-test_*.py
-*_test.py
 
 # Root HTML files
 /*.html

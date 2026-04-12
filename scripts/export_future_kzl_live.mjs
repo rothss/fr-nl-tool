@@ -9,7 +9,7 @@ function parseArgs(argv) {
     cdpUrl: process.env.FR_CDP_URL || process.env.OPM_EDGE_CDP_URL || "http://127.0.0.1:9222",
     baseUrl: process.env.FR_BASE_URL || process.env.OPM_BASE_URL || "http://localhost:8075/webroot/decision",
     reportPath: "doc/Fdjt/市场监督/客座率监控/未来航班客座率票价分析-PG库.cpt",
-    outputFile: process.env.FR_MIRROR_ROOT ? `${process.env.FR_MIRROR_ROOT}/包干航线/未来航班客座率票价分析.xlsx` : "C:/Users/ZhuanZ/opm_mirror/包干航线/未来航班客座率票价分析.xlsx",
+    outputFile: process.env.FR_MIRROR_ROOT ? `${process.env.FR_MIRROR_ROOT}/包干航线/未来航班客座率票价分析.xlsx` : "./fr_mirror/包干航线/未来航班客座率票价分析.xlsx",
     batchRoot: process.env.FR_BATCH_ROOT || process.env.OPM_BATCH_ROOT || "./fr_batch",
     waitMs: 6000,
     dateStart: "",

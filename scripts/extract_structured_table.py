@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from openpyxl import load_workbook
 
 
 def _detect_header_row(df: pd.DataFrame, max_rows: int = 15) -> int:
@@ -12,7 +13,11 @@ def _detect_header_row(df: pd.DataFrame, max_rows: int = 15) -> int:
     best_score = -1
     upper = min(max_rows, len(df))
     for i in range(upper):
-        vals = [str(x).strip() for x in df.iloc[i].tolist() if str(x).strip() and str(x).strip() != "nan"]
+        vals = [
+            str(x).strip()
+            for x in df.iloc[i].tolist()
+            if str(x).strip() and str(x).strip() != "nan"
+        ]
         score = len(vals)
         if score > best_score:
             best_score = score
@@ -36,7 +41,7 @@ def _dedup_columns(cols: list[str]) -> list[str]:
         if n == 0:
             out.append(base)
         else:
-            out.append(f"{base}_{n+1}")
+            out.append(f"{base}_{n + 1}")
         seen[base] = n + 1
     return out
 
@@ -82,6 +87,39 @@ def _extract_multi_header_table(df: pd.DataFrame) -> pd.DataFrame | None:
     return data.reset_index(drop=True)
 
 
+def _openpyxl_sheet_to_rows(path: Path) -> tuple[list[dict], int]:
+    wb = load_workbook(path, data_only=True)
+    sheet_rows: list[list[object]] = []
+    try:
+        for sheet in wb.sheetnames:
+            ws = wb[sheet]
+            rows = [[cell for cell in row] for row in ws.iter_rows(values_only=True)]
+            if not rows:
+                continue
+            header_idx = 0
+            best_score = -1
+            for idx, row in enumerate(rows[:15]):
+                score = len([v for v in row if _clean_cell(v)])
+                if score > best_score:
+                    best_score = score
+                    header_idx = idx
+            headers = [_clean_cell(v) for v in rows[header_idx]]
+            headers = [h for h in headers if h]
+            if not headers:
+                continue
+            deduped = _dedup_columns(headers)
+            for row in rows[header_idx + 1 :]:
+                values = [_clean_cell(v) for v in row[: len(deduped)]]
+                if not any(values):
+                    continue
+                if len(values) < len(deduped):
+                    values.extend([""] * (len(deduped) - len(values)))
+                sheet_rows.append(dict(zip(deduped, values)))
+        return sheet_rows, len(wb.sheetnames)
+    finally:
+        wb.close()
+
+
 def _is_meaningful_row(row: dict) -> bool:
     id_cols = ["航班号", "航班日期", "航段"]
     if any(str(row.get(c, "")).strip() for c in id_cols):
@@ -99,6 +137,16 @@ def _is_meaningful_row(row: dict) -> bool:
 
 
 def extract_table(path: Path) -> dict:
+    if not hasattr(pd, "ExcelFile"):
+        rows, sheet_count = _openpyxl_sheet_to_rows(path)
+        meaningful_rows = [r for r in rows if _is_meaningful_row(r)]
+        return {
+            "columns": list(rows[0].keys()) if rows else [],
+            "rows": rows,
+            "meaningful_row_count": len(meaningful_rows),
+            "sheet_count": sheet_count,
+        }
+
     xls = pd.ExcelFile(path)
     sheet_frames: list[pd.DataFrame] = []
     for sheet in xls.sheet_names:
@@ -119,7 +167,9 @@ def extract_table(path: Path) -> dict:
         data.columns = _dedup_columns(headers)
         data = data.fillna("")
         # Drop rows with all-empty values.
-        data = data[data.apply(lambda r: any(str(x).strip() for x in r.tolist()), axis=1)]
+        data = data[
+            data.apply(lambda r: any(str(x).strip() for x in r.tolist()), axis=1)
+        ]
         data = data.reset_index(drop=True)
         if not data.empty:
             sheet_frames.append(data)
@@ -135,7 +185,9 @@ def extract_table(path: Path) -> dict:
         padded = []
         for f in sheet_frames:
             if len(f) < max_len:
-                pad = pd.DataFrame([[""] * len(f.columns)] * (max_len - len(f)), columns=f.columns)
+                pad = pd.DataFrame(
+                    [[""] * len(f.columns)] * (max_len - len(f)), columns=f.columns
+                )
                 f = pd.concat([f, pad], ignore_index=True)
             padded.append(f.reset_index(drop=True))
         merged = pd.concat(padded, axis=1)
@@ -152,7 +204,9 @@ def extract_table(path: Path) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Extract structured table rows from report excel.")
+    parser = argparse.ArgumentParser(
+        description="Extract structured table rows from report excel."
+    )
     parser.add_argument("file_path")
     args = parser.parse_args()
     result = extract_table(Path(args.file_path))

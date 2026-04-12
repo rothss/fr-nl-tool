@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢您对自然语言报表查询系统的关注！我们欢迎各种形式的贡献。
+感谢您对 FineReport NL Query Skill (OPM Example) 的关注！我们欢迎各种形式的贡献。
 
 ## 如何贡献
 
@@ -30,7 +30,7 @@
 
 ### 测试
 
-```bash
+```powershell
 # 运行所有测试
 python -m unittest discover -s tests -p "test_*.py" -v
 
@@ -49,10 +49,10 @@ python -m unittest tests.test_config -v
 
 ## 开发环境设置
 
-```bash
+```powershell
 # 克隆仓库
 git clone <repository-url>
-cd fr-nl-report-query
+cd opm-nl-report-query
 
 # 创建虚拟环境
 python -m venv venv
@@ -64,7 +64,7 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 
 # 复制环境变量模板
-cp .env.example .env
+Copy-Item .env.example .env
 ```
 
 ## 联系

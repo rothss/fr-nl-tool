@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import unittest
 import warnings
@@ -17,7 +18,7 @@ import query_fr_nl  # noqa: E402
 
 
 CASE_FILE = Path(__file__).with_name("offline_query_cases.json")
-MIRROR_ROOT = Path(r"C:\Users\ZhuanZ\fr_mirror")
+MIRROR_ROOT = Path(os.environ.get("FR_TEST_MIRROR_ROOT", "./fr_mirror"))
 CATALOG_DB = MIRROR_ROOT / "search_index" / "report_catalog.db"
 USER_SCOPE = MIRROR_ROOT / "search_index" / "user_scope.yaml"
 

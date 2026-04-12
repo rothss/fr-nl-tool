@@ -217,7 +217,10 @@ def run_incremental_excel_index(
     else:
         build_index_py = Path(__file__).parent.parent / "scripts" / "build_index.py"
     if not build_index_py.exists():
-        return False, "build_index_py_missing"
+        return (
+            False,
+            "incremental_index_builder_missing: configure FR_BUILD_INDEX_PY to enable incremental excel index rebuild",
+        )
     try:
         proc = subprocess.run(
             [

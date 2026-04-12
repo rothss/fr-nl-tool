@@ -86,6 +86,25 @@ class ConfigTests(unittest.TestCase):
         for var in required_vars:
             self.assertIn(var, content, f"Environment variable {var} not documented")
 
+    def test_user_scope_example_is_generic(self):
+        """Test that user_scope.example.yaml uses generic demo values."""
+        root = Path(__file__).resolve().parents[1]
+        example = root / "references" / "user_scope.example.yaml"
+        self.assertTrue(example.exists(), "user_scope.example.yaml not found")
+
+        content = example.read_text(encoding="utf-8")
+        self.assertIn("default_user: demo_user", content)
+        self.assertNotIn("zhuanz", content)
+
+    def test_gitignore_does_not_ignore_tracked_tests(self):
+        """Test that .gitignore no longer excludes the committed tests directory."""
+        root = Path(__file__).resolve().parents[1]
+        gitignore = root / ".gitignore"
+        self.assertTrue(gitignore.exists(), ".gitignore not found")
+
+        content = gitignore.read_text(encoding="utf-8")
+        self.assertNotIn("tests/", content)
+
 
 class Phase2FeaturesTests(unittest.TestCase):
     """Test Phase 2 configuration features."""

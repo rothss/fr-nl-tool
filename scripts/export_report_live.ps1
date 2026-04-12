@@ -2,11 +2,11 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$ReportName,
   [string]$IncludeRootName = "包干航线",
-  [string]$OpmSkillRoot = "C:\Users\Zhuann\Z\.codex\skills\opm-incremental-download",
+  [string]$RefreshToolRoot = $(if ($env:FR_REFRESH_TOOL_ROOT) { $env:FR_REFRESH_TOOL_ROOT } else { "" }),
   [string]$EdgeCdpUrl = $(if ($env:FR_CDP_URL) { $env:FR_CDP_URL } elseif ($env:OPM_EDGE_CDP_URL) { $env:OPM_EDGE_CDP_URL } else { "http://127.0.0.1:9222" }),
-  [string]$EdgeProfileDir = "C:\Users\Zhuann\Z\opm_edge_profile_nlquery",
+  [string]$EdgeProfileDir = $(if ($env:FR_EDGE_PROFILE_DIR) { $env:FR_EDGE_PROFILE_DIR } else { ".\fr_batch\edge_profile_nlquery" }),
   [string]$FallbackEdgeCdpUrl = "http://127.0.0.1:9222",
-  [string]$FallbackEdgeProfileDir = "C:\Users\Zhuann\Z\opm_edge_profile",
+  [string]$FallbackEdgeProfileDir = $(if ($env:FR_FALLBACK_EDGE_PROFILE_DIR) { $env:FR_FALLBACK_EDGE_PROFILE_DIR } else { ".\fr_batch\edge_profile" }),
   [string]$OutputRoot = $(if ($env:FR_MIRROR_ROOT) { $env:FR_MIRROR_ROOT } elseif ($env:OPM_MIRROR_ROOT) { $env:OPM_MIRROR_ROOT } else { ".\fr_mirror" }),
   [string]$BatchRoot = $(if ($env:FR_BATCH_ROOT) { $env:FR_BATCH_ROOT } elseif ($env:OPM_BATCH_ROOT) { $env:OPM_BATCH_ROOT } else { ".\fr_batch" }),
   [ValidateSet("never","if_missing","always")]
@@ -28,9 +28,12 @@ $env:no_proxy = "127.0.0.1,localhost"
 $env:ALL_PROXY = ""
 $env:all_proxy = ""
 
-$downloadScript = Join-Path $OpmSkillRoot "scripts\invoke-opm-download.ps1"
+$downloadScript = if ([string]::IsNullOrWhiteSpace($RefreshToolRoot)) { "" } else { Join-Path $RefreshToolRoot "scripts\invoke-opm-download.ps1" }
+if ([string]::IsNullOrWhiteSpace($RefreshToolRoot)) {
+  throw "Live refresh requires FR_REFRESH_TOOL_ROOT to point to a compatible incremental download tool. Offline query remains available without it."
+}
 if (-not (Test-Path $downloadScript)) {
-  throw "OPM incremental download script not found: $downloadScript"
+  throw "Live refresh tool not found under FR_REFRESH_TOOL_ROOT. Expected script: scripts\invoke-opm-download.ps1"
 }
 $httpScript = Join-Path $BatchRoot "opm_batch_http.ps1"
 
@@ -69,11 +72,11 @@ function Invoke-IncrementalRefresh {
   return $LASTEXITCODE
 }
 Write-Host "Running incremental refresh for root: $IncludeRootName"
-Invoke-IncrementalRefresh -Root $OpmSkillRoot -CdpUrl $EdgeCdpUrl -ProfileDir $EdgeProfileDir
+Invoke-IncrementalRefresh -Root $RefreshToolRoot -CdpUrl $EdgeCdpUrl -ProfileDir $EdgeProfileDir
 $downloadExitCode = $LASTEXITCODE
 if ($downloadExitCode -ne 0 -and -not [string]::IsNullOrWhiteSpace($FallbackEdgeCdpUrl) -and $FallbackEdgeCdpUrl -ne $EdgeCdpUrl) {
   Write-Host "Primary profile refresh failed. Trying fallback profile..."
-  Invoke-IncrementalRefresh -Root $OpmSkillRoot -CdpUrl $FallbackEdgeCdpUrl -ProfileDir $FallbackEdgeProfileDir
+  Invoke-IncrementalRefresh -Root $RefreshToolRoot -CdpUrl $FallbackEdgeCdpUrl -ProfileDir $FallbackEdgeProfileDir
   $downloadExitCode = $LASTEXITCODE
 }
 if ($downloadExitCode -ne 0) {
@@ -86,13 +89,13 @@ if ($downloadExitCode -ne 0) {
     }
     Write-Host "HTTP fallback failed with exit code $LASTEXITCODE."
   }
-  $edgeStart = Join-Path $OpmSkillRoot "scripts\start-opm-edge.ps1"
+  $edgeStart = Join-Path $RefreshToolRoot "scripts\start-opm-edge.ps1"
   if (Test-Path $edgeStart) {
     Write-Host "Attempting to open fixed-profile Edge for QR login..."
     $edgePort = [int]([uri]$EdgeCdpUrl).Port
     & pwsh -NoProfile -File $edgeStart -EdgeProfileDir $EdgeProfileDir -RemoteDebugPort $edgePort -StartUrl $env:FR_BASE_URL
   }
-  throw "Incremental download failed (exit=$downloadExitCode). Please complete QR login in the opened Edge window, then retry. If CDP remains unavailable, set FR_AUTH_TOKEN (or OPM_FINE_AUTH_TOKEN) and OPM_CAS_TICKET to enable HTTP fallback."
+  throw "Incremental download failed (exit=$downloadExitCode). Please complete QR login in the opened Edge window, then retry. If CDP remains unavailable, set FR_AUTH_TOKEN (or OPM_FINE_AUTH_TOKEN) and OPM_CAS_TICKET to enable HTTP fallback. This live-refresh helper is optional and requires FR_REFRESH_TOOL_ROOT."
 }
 
 Write-Host "Refresh done. Next step should rescan catalog and retry query."
