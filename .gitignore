@@ -32,3 +32,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Root HTML files
+/*.html
+/*.htm
