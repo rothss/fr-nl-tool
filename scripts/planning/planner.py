@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from planning.refresh_policy import decide_refresh_policy
 from planning.router import route_report_family
+from profiles import get_profile_analysis_engine_name
 
 
 def build_query_plan(intent: dict, local_probe: dict | None = None) -> dict:
     routed = route_report_family(intent)
-    top = routed[0] if routed else {"report_family": None, "report_name": None, "score": 0.0, "reasons": []}
+    top = (
+        routed[0]
+        if routed
+        else {"report_family": None, "report_name": None, "score": 0.0, "reasons": []}
+    )
     probe = local_probe or {
         "file_exists": False,
         "schema_ok": False,
@@ -15,15 +20,7 @@ def build_query_plan(intent: dict, local_probe: dict | None = None) -> dict:
     }
     refresh_policy = decide_refresh_policy(intent, top, probe)
 
-    analysis_engine = None
-    if top.get("report_family") == "future_flight_competition":
-        analysis_engine = "future_flight_competition"
-    elif top.get("report_family") in {"airline_yoy", "adjusted_profit_overview"}:
-        analysis_engine = "airline_yoy"
-    elif top.get("report_family") == "ranked_flights":
-        analysis_engine = "ranked_flights"
-    elif top.get("report_family") == "single_margin":
-        analysis_engine = "single_margin"
+    analysis_engine = get_profile_analysis_engine_name(top.get("report_family"))
 
     fallback_plans: list[dict] = []
     if "route_mismatch" in refresh_policy["reason_codes"]:
@@ -39,7 +36,8 @@ def build_query_plan(intent: dict, local_probe: dict | None = None) -> dict:
         "require_live_refresh": bool(refresh_policy["require_live_refresh"]),
         "analysis_engine": analysis_engine,
         "fallback_plans": fallback_plans,
-        "rationale": list(top.get("reasons") or []) + [f"refresh:{x}" for x in refresh_policy["reason_codes"]],
+        "rationale": list(top.get("reasons") or [])
+        + [f"refresh:{x}" for x in refresh_policy["reason_codes"]],
         "candidate_score": top.get("score"),
         "refresh_policy": refresh_policy,
     }
