@@ -1,0 +1,14 @@
+# Core dependencies for fr-nl-report-query
+# Python 3.10+ required
+
+# Excel processing
+openpyxl>=3.1.0
+
+# YAML parsing
+pyyaml>=6.0
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# Data processing (optional, for analysis modules)
+numpy>=1.24.0,<2.0.0

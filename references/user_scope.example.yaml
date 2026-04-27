@@ -1,0 +1,8 @@
+default_user: demo_user
+users:
+  demo_user:
+    指定航线:
+      航段:
+        - 示例城市A-示例城市B
+      航班号:
+        - DEMO1001

@@ -1,0 +1,205 @@
+[
+  {
+    "name": "airline_margin_yoy_best_month",
+    "query": "各航司3月单机边际贡献，同比起来谁最好",
+    "expected": {
+      "metric": "单机边际贡献",
+      "owner_scope": "all",
+      "filters": {
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__",
+        "extreme": "best"
+      }
+    }
+  },
+  {
+    "name": "airline_profit_yoy_worst_this_month",
+    "query": "这个月的各航司净利润的同比，谁表现得最差",
+    "expected": {
+      "metric": "净利润同比",
+      "owner_scope": "all",
+      "filters": {
+        "compare_scope": "airline_yoy",
+        "extreme": "worst",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      }
+    }
+  },
+  {
+    "name": "adjusted_profit_overview_best_in_february",
+    "query": "2月份的不含发动机大修和飞机退租的净利润，哪个航司提升最大",
+    "expected": {
+      "metric": "净利润同比",
+      "owner_scope": "all",
+      "filters": {
+        "report_variant": "adjusted_profit_overview",
+        "profit_caliber": "经营考核利润口径-不含发动机大修和飞机退租",
+        "compare_scope": "airline_yoy",
+        "extreme": "best",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      }
+    }
+  },
+  {
+    "name": "bottom10_first_flight_range",
+    "query": "集团3月24到3月29日，后十的航班有几条是首航的，分别是哪几个",
+    "expected": {
+      "metric": null,
+      "owner_scope": "all",
+      "filters": {
+        "group": "集团",
+        "rank_scope": "后十",
+        "first_flight": true,
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      }
+    }
+  },
+  {
+    "name": "competition_review_owned_route_three_days",
+    "query": "海口-北京首都的指定航线，近三天的票价和客座率与外航相比，有没有什么异常或者可以改进的吗",
+    "expected": {
+      "metric": "客座率",
+      "metrics": "__non_empty__",
+      "owner_scope": "all",
+      "filters": {
+        "segment_from": "海口",
+        "segment_to": "北京首都",
+        "analysis_mode": "competition_review",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      }
+    }
+  },
+  {
+    "name": "competition_review_future_two_days_variant",
+    "query": "海口到北京首都未来两天的客座率和票价，和竞争对手比有什么问题",
+    "expected": {
+      "metric": "客座率",
+      "metrics": "__non_empty__",
+      "owner_scope": "all",
+      "filters": {
+        "segment_from": "海口",
+        "segment_to": "北京首都",
+        "analysis_mode": "competition_review",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      },
+      "structured_intent": {
+        "time": {
+          "mode": "relative_future_range"
+        },
+        "analysis": {
+          "mode": "competition_review"
+        }
+      }
+    }
+  },
+  {
+    "name": "competition_review_future_three_days_variant",
+    "query": "海口到北京首都未来3天的票价和客座率跟竞对相比怎么样",
+    "expected": {
+      "metric": "客座率",
+      "metrics": "__non_empty__",
+      "owner_scope": "all",
+      "filters": {
+        "segment_from": "海口",
+        "segment_to": "北京首都",
+        "analysis_mode": "competition_review",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      },
+      "structured_intent": {
+        "time": {
+          "mode": "relative_future_range"
+        },
+        "analysis": {
+          "mode": "competition_review"
+        }
+      }
+    }
+  },
+  {
+    "name": "airport_alias_variant",
+    "query": "美兰到首都未来两天的客座率和票价，和竞争对手比有什么问题",
+    "expected": {
+      "filters": {
+        "segment_from": "海口",
+        "segment_to": "北京首都",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      },
+      "structured_intent": {
+        "route": {
+          "origin_norm": "海口",
+          "destination_norm": "北京首都",
+          "origin_code": "AP1",
+          "destination_code": "PEK"
+        }
+      }
+    }
+  },
+  {
+    "name": "top_hour_margin_last_week",
+    "query": "集团上周小时边贡最高的航班",
+    "expected": {
+      "metric": "小时边际贡献",
+      "owner_scope": "all",
+      "filters": {
+        "group": "集团",
+        "extreme": "best",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      }
+    }
+  },
+  {
+    "name": "top_total_margin_last_week",
+    "query": "集团上周总边贡最高的航班",
+    "expected": {
+      "metric": "总边贡",
+      "owner_scope": "all",
+      "filters": {
+        "group": "集团",
+        "extreme": "best",
+        "date_start": "__non_empty__",
+        "date_end": "__non_empty__",
+        "flight_date": "__non_empty__"
+      }
+    }
+  },
+  {
+    "name": "skill_quickstart_mine_load_factor",
+    "query": "我的指定航线的客座率是多少",
+    "expected": {
+      "metric": "客座率",
+      "owner_scope": "mine",
+      "filters": {}
+    }
+  },
+  {
+    "name": "skill_quickstart_future_seat_inventory",
+    "query": "CA1234明天的余票",
+    "expected": {
+      "metric": "余票",
+      "owner_scope": "all",
+      "filters": {
+        "flight_no": [
+          "CA1234"
+        ],
+        "flight_date": "__non_empty__"
+      }
+    }
+  }
+]

@@ -1,0 +1,13 @@
+cities:
+  海口:
+    aliases: [海口, 海口美兰, 美兰, AP1]
+    airport_code: AP1
+  北京首都:
+    aliases: [北京首都, 首都, 首都机场, PEK]
+    airport_code: PEK
+  北京大兴:
+    aliases: [北京大兴, 大兴, 大兴机场, PKX]
+    airport_code: PKX
+  博鳌:
+    aliases: [博鳌, BFA]
+    airport_code: BFA

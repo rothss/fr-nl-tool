@@ -1,0 +1,29 @@
+[
+  {
+    "name": "offline_owned_load_factor_query",
+    "query": "我的指定航线的客座率是多少",
+    "user": "test_user",
+    "expected": {
+      "top_candidate.report_name": "未来航班客座率票价分析",
+      "metric_column": "现在客座率",
+      "row_count_after_filter": 7,
+      "answer_text_contains": [
+        "命中报表: 未来航班客座率票价分析",
+        "现在客座率"
+      ]
+    }
+  },
+  {
+    "name": "offline_future_seat_inventory_query",
+    "query": "航班明天的余票",
+    "user": "test_user",
+    "expected": {
+      "top_candidate.report_name": "未来航班客座率票价分析",
+      "metric_column": "余票",
+      "row_count_after_filter": 1,
+      "answer_text_contains": [
+        "余票"
+      ]
+    }
+  }
+]

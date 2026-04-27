@@ -1,0 +1,14 @@
+components:
+  - report_match: "集团经营提升分析"
+    metric_keywords:
+      - "单机边际贡献"
+      - "边际贡献"
+      - "单机边贡"
+    viewlet: "Fdjt/marketOperSup/集团经营提升分析/2单机边际贡献-宽体机.cpt"
+    op: "form_adaptive"
+    parameter_map:
+      date_s: "{date_start}"
+      date_e: "{date_end}"
+      date_s_tq: "{date_start_prev_year}"
+      date_e_tq: "{date_end_prev_year}"
+      comp_name: "{company|}"
