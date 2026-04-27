@@ -7,6 +7,7 @@ from pathlib import Path
 from adapters.openclaw_contract import to_openclaw_result
 from common import (
     default_catalog_db,
+    default_manifest_json,
     default_mirror_root,
     default_profile_db,
     references_dir,
@@ -15,11 +16,16 @@ from data.catalog import find_report_candidates, load_catalog
 from data.extractor_registry import extract_rows_for_report, get_analysis_engine
 from data.schemas import probe_local_file_against_intent
 from data.source_loader import acquire_source, should_block_on_preflight
+from download.auth import extract_auth
+from download.batch import download_all, download_folder
+from download.discover import build_manifest
 from parse_query_intent import parse_query
 from planning.planner import build_query_plan as build_schema_aware_plan
 from planning.router import route_report_family
 from query_fr_nl import run_query as execute_query
 from render.answer_renderer import render_answer_text
+from search.indexer import IndexStats, build_index
+from search.searcher import search, search_json
 
 
 def ensure_user_scope(path: Path) -> Path:
@@ -321,23 +327,7 @@ def run_query(
     return wrap_legacy_result(intent, query_result)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Structured OpenClaw entrypoint for OPM NL query."
-    )
-    parser.add_argument("query", help="Natural-language query")
-    parser.add_argument("--user", help="User id for owner scope resolution")
-    parser.add_argument("--mirror-root", default=str(default_mirror_root()))
-    parser.add_argument("--db", default=str(default_catalog_db()))
-    parser.add_argument("--excel-index", help="Path to excel_index.db (optional)")
-    parser.add_argument("--profile-db", help="Path to report_profiles.db (optional)")
-    parser.add_argument(
-        "--user-scope",
-        default=str(default_mirror_root() / "search_index" / "user_scope.yaml"),
-    )
-    parser.add_argument("--output-format", choices=("json", "text"), default="json")
-    args = parser.parse_args()
-
+def _cmd_query(args: argparse.Namespace) -> None:
     result = run_query(
         query=args.query,
         user=args.user,
@@ -351,12 +341,205 @@ def main() -> None:
         if result.get("ok"):
             print(result.get("answer_text") or "")
         else:
-            print(
-                result.get("message")
-                or json.dumps(result, ensure_ascii=False, indent=2)
-            )
+            print(result.get("message") or json.dumps(result, ensure_ascii=False, indent=2))
         return
     print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def _cmd_discover(args: argparse.Namespace) -> None:
+    output = Path(args.manifest) if args.manifest else default_manifest_json()
+    auth = extract_auth() if not args.skip_auth else None
+    if auth and "error" in auth:
+        print(json.dumps(auth, ensure_ascii=False, indent=2))
+        return
+    result = build_manifest(
+        base_url=args.base_url,
+        output_path=output,
+        auth=auth,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def _cmd_download(args: argparse.Namespace) -> None:
+    output_root = Path(args.output) if args.output else default_mirror_root()
+
+    if args.folder:
+        result = download_folder(
+            args.folder, output_root=output_root,
+            overwrite=args.overwrite, extype=args.extype,
+        )
+    elif args.all:
+        result = download_all(
+            output_root=output_root,
+            overwrite=args.overwrite, extype=args.extype,
+        )
+    else:
+        result = {"ok": False, "error": "specify --all or --folder NAME"}
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def _cmd_index(args: argparse.Namespace) -> None:
+    root = Path(args.root) if args.root else default_mirror_root()
+    db_path = Path(args.db) if args.db else (root / "search_index" / "excel_index.db")
+    stats: IndexStats = build_index(
+        root=root, db_path=db_path,
+        incremental=not args.full,
+        drop_numeric=not args.keep_numeric,
+    )
+    print(json.dumps({
+        "ok": True,
+        "files_indexed": stats.files_indexed,
+        "files_skipped": stats.files_skipped,
+        "files_failed": stats.files_failed,
+        "sheets_indexed": stats.sheets_indexed,
+        "cells_indexed": stats.cells_indexed,
+        "db_path": str(db_path),
+    }, ensure_ascii=False))
+
+
+def _cmd_search(args: argparse.Namespace) -> None:
+    root = Path(args.root).resolve() if args.root else default_mirror_root().resolve()
+    db_path = Path(args.db) if args.db else (root / "search_index" / "excel_index.db")
+    hits = search_json(db_path, " ".join(args.keywords), limit=args.limit)
+    if not hits:
+        print("No matches found.")
+        return
+
+    def _rel_path(file_path: str) -> str:
+        p = Path(file_path)
+        try:
+            return str(p.parent.resolve().relative_to(root)).replace("\\", "/")
+        except (ValueError, OSError):
+            pass
+        s = str(p).replace("\\", "/")
+        for marker in ("/opm_mirror/", "/fr_mirror/"):
+            i = s.find(marker)
+            if i >= 0:
+                rel = s[i + len(marker):]
+                pp = Path(rel).parent
+                return str(pp).replace("\\", "/")
+        return str(p.parent).replace("\\", "/")
+
+    groups: dict[str, dict] = {}
+    for h in hits:
+        fp = h["file_path"]
+        if fp not in groups:
+            name = h.get("file_name") or ""
+            groups[fp] = {
+                "file_name": name,
+                "report_name": Path(name).stem if name else Path(fp).stem,
+                "file_path": fp,
+                "name_hit": h["hit_type"] == "report",
+                "cells": {},
+            }
+        if h["hit_type"] == "report":
+            groups[fp]["name_hit"] = True
+        else:
+            sheet = h["sheet_name"]
+            val = h["cell_value"]
+            if sheet not in groups[fp]["cells"]:
+                groups[fp]["cells"][sheet] = []
+            if val not in groups[fp]["cells"][sheet]:
+                groups[fp]["cells"][sheet].append(val)
+
+    for idx, (fp, g) in enumerate(groups.items(), start=1):
+        name_tag = " [文件名命中]" if g["name_hit"] else ""
+        print(f"[{idx}] {g['report_name']}{name_tag}")
+        print(f"路径: {_rel_path(fp)}")
+        cell_count = sum(len(v) for v in g["cells"].values())
+        print(f"匹配条数: {cell_count}")
+        if g["cells"]:
+            print("匹配内容:")
+            for sheet_name, values in g["cells"].items():
+                merged = " | ".join(values)
+                print(f"  [{sheet_name}] {merged}")
+        print()
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    known_commands = {"query", "discover", "download", "index", "search"}
+    if argv is None:
+        import sys
+        argv = sys.argv[1:]
+
+    # Backward compatible: bare positional = "query <text>"
+    if argv and argv[0] not in known_commands and not argv[0].startswith("-"):
+        argv = ["query"] + argv
+
+    parser = argparse.ArgumentParser(description="OPM NL report query & download tool")
+    sub = parser.add_subparsers(dest="command")
+
+    p_q = sub.add_parser("query", help="Natural-language KPI query")
+    p_q.add_argument("query_text", help="Natural-language query text")
+    p_q.add_argument("--user")
+    p_q.add_argument("--mirror-root", default=str(default_mirror_root()))
+    p_q.add_argument("--db", default=str(default_catalog_db()))
+    p_q.add_argument("--excel-index")
+    p_q.add_argument("--profile-db")
+    p_q.add_argument("--user-scope", default=str(default_mirror_root() / "search_index" / "user_scope.yaml"))
+    p_q.add_argument("--output-format", choices=("json", "text"), default="json")
+
+    p_d = sub.add_parser("discover", help="Discover all reports from platform")
+    p_d.add_argument("--base-url", default=None)
+    p_d.add_argument("--manifest", default=str(default_manifest_json()))
+    p_d.add_argument("--skip-auth", action="store_true")
+
+    p_dl = sub.add_parser("download", help="Batch download reports")
+    p_dl.add_argument("--all", action="store_true")
+    p_dl.add_argument("--folder")
+    p_dl.add_argument("--output", default=str(default_mirror_root()))
+    p_dl.add_argument("--overwrite", choices=("never", "if_missing", "always"), default="never")
+    p_dl.add_argument("--extype", choices=("simple", "sheet", "page"), default="simple",
+                      help="Export style: simple=原样导出(少Sheet), sheet=分页分Sheet, page=分页")
+
+    p_i = sub.add_parser("index", help="Build full-text search index")
+    p_i.add_argument("--root", default=str(default_mirror_root()))
+    p_i.add_argument("--db", default=None)
+    p_i.add_argument("--full", action="store_true")
+    p_i.add_argument("--keep-numeric", action="store_true")
+
+    p_s = sub.add_parser("search", help="Search any metric across indexed reports")
+    p_s.add_argument("--root", default=str(default_mirror_root()))
+    p_s.add_argument("--db", default=None)
+    p_s.add_argument("--limit", type=int, default=20)
+    p_s.add_argument("keywords", nargs="+", help="Search keywords")
+
+    return parser.parse_args(argv)
+
+
+def main() -> None:
+    args = _parse_args()
+
+    if args.command == "query":
+        run_result = run_query(
+            query=args.query_text,
+            user=args.user,
+            mirror_root=Path(args.mirror_root),
+            db_path=Path(args.db),
+            user_scope_path=Path(args.user_scope),
+            excel_index_db=Path(args.excel_index) if args.excel_index else None,
+            profile_db=Path(args.profile_db) if args.profile_db else None,
+        )
+        if args.output_format == "text":
+            print(run_result.get("answer_text") or run_result.get("message") or "")
+            return
+        print(json.dumps(run_result, ensure_ascii=False, indent=2))
+
+    elif args.command == "discover":
+        _cmd_discover(args)
+
+    elif args.command == "download":
+        _cmd_download(args)
+
+    elif args.command == "index":
+        _cmd_index(args)
+
+    elif args.command == "search":
+        _cmd_search(args)
+
+    else:
+        parser = argparse.ArgumentParser()
+        parser.print_help()
 
 
 if __name__ == "__main__":
