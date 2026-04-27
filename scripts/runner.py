@@ -366,12 +366,12 @@ def _cmd_download(args: argparse.Namespace) -> None:
     if args.folder:
         result = download_folder(
             args.folder, output_root=output_root,
-            overwrite=args.overwrite, extype=args.extype,
+            overwrite=args.overwrite, extype=args.extype, resume=args.resume,
         )
     elif args.all:
         result = download_all(
             output_root=output_root,
-            overwrite=args.overwrite, extype=args.extype,
+            overwrite=args.overwrite, extype=args.extype, resume=args.resume,
         )
     else:
         result = {"ok": False, "error": "specify --all or --folder NAME"}
@@ -491,6 +491,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p_dl.add_argument("--overwrite", choices=("never", "if_missing", "always"), default="never")
     p_dl.add_argument("--extype", choices=("simple", "sheet", "page"), default="simple",
                       help="Export style: simple=原样导出(少Sheet), sheet=分页分Sheet, page=分页")
+    p_dl.add_argument("--resume", action="store_true", help="Resume from last successful entry")
 
     p_i = sub.add_parser("index", help="Build full-text search index")
     p_i.add_argument("--root", default=str(default_mirror_root()))

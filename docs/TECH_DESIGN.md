@@ -2,7 +2,7 @@
 
 ## 1. Goals
 
-This document defines the target architecture for the `opm_nl` skill so it can be called by OpenClaw with:
+This document defines the target architecture for the `fr_nl` skill so it can be called by OpenClaw with:
 
 - fast first-pass intent resolution
 - precise report routing and data-source selection
@@ -319,7 +319,7 @@ Example output:
 {
   "ok": true,
   "source_type": "live_export",
-  "file_path": "C:\\Users\\ZhuanZ\\opm_mirror\\包干航线\\未来航班客座率票价分析.xlsx",
+  "file_path": "$env:FR_MIRROR_ROOT/包干航线/未来航班客座率票价分析.xlsx",
   "refreshed": true,
   "refresh_message": "ok",
   "last_modified": "2026-04-01T13:42:11+08:00"
@@ -970,7 +970,7 @@ Required rules:
   "reason_code": null,
   "intent": {
     "raw_query": "海口到北京首都未来两天的客座率和票价，和竞争对手比有什么问题",
-    "domain": "opm_future_flight",
+    "domain": "fr_future_flight",
     "intent_type": "route_competition_diagnosis",
     "metrics": ["客座率", "票价"],
     "route": {
@@ -1019,7 +1019,7 @@ Required rules:
   "source_meta": {
     "ok": true,
     "source_type": "live_export",
-    "file_path": "C:\\Users\\ZhuanZ\\opm_mirror\\包干航线\\未来航班客座率票价分析.xlsx",
+    "file_path": "$env:FR_MIRROR_ROOT/包干航线/未来航班客座率票价分析.xlsx",
     "refreshed": true,
     "refresh_message": "ok",
     "last_modified": "2026-04-01T13:42:11+08:00",

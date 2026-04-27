@@ -4,7 +4,7 @@
 
 - Name: `TECH_DESIGN refactor complete`
 - Baseline commit: `19e3857`
-- Scope: restructure the `opm-nl-report-query` skill to match the target architecture in `TECH_DESIGN.md`
+- Scope: restructure the `fr-nl-report-query` skill to match the target architecture in `TECH_DESIGN.md`
 
 ## What Changed
 

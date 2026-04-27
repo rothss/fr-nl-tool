@@ -1,3 +1,16 @@
+"""
+FineReport HTTP 导出模块
+
+⚠ 注意：Python urllib 的 cookie 机制与 FineReport CAS 统一登录平台不兼容。
+在 opm.hnair.net 等 CAS 平台上下载管线不可用。该平台的可靠导出需走
+Playwright/CDP 浏览器的 .mjs 脚本（export_report_generic_live.mjs 等）。
+
+此模块适用于：
+- 无 CAS 认证的 FineReport 实例
+- 已通过 FR_AUTH_TOKEN 注入认证的场景
+- 开发/测试环境的 mock 数据
+"""
+
 from __future__ import annotations
 
 import http.cookiejar

@@ -2,16 +2,31 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
 
-# Load environment variables from .env file
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass  # dotenv not installed, rely on system env vars
+# ---- .env loader (stdlib, no dependency) ----
+_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+
+
+def _load_dotenv(path: Path | None = None) -> None:
+    p = path or _ENV_PATH
+    if not p.exists():
+        return
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+_load_dotenv()
 
 
 def skill_root() -> Path:
