@@ -1,0 +1,57 @@
+# OPM production profile — overrides the public generic names with real OPM report config.
+# This file is gitignored. Set FR_REPORT_PROFILE=references/report_profiles_opm.yaml to use it.
+#
+# Usage:
+#   $env:FR_REPORT_PROFILE = "references/report_profiles_opm.yaml"
+
+families:
+  future_flight_competition:
+    report_name: "未来航班客座率票价分析"
+    engine: future_flight_competition
+  route_metric_lookup:
+    report_name: "未来航班客座率票价分析"
+    engine: future_flight_competition
+  adjusted_profit_overview:
+    report_name: "航空集团收入利润概览（调整后）"
+    engine: airline_yoy
+  airline_yoy:
+    report_name: "航空集团经营提升分析"
+    engine: airline_yoy
+  ranked_flights:
+    report_name: "航空集团前十后十航班"
+    engine: ranked_flights
+  single_margin:
+    report_name: "单机边际贡献"
+    engine: single_margin
+
+bindings:
+  - report: "未来航班客座率票价分析"
+    mode: competition_review
+    analyzer: future_flight_competition
+    renderer: render_future_competition_review
+  - report: "航空集团经营提升分析"
+    mode: ""
+    analyzer: airline_yoy
+    renderer: render_airline_yoy_answer
+  - report: "航空集团收入利润概览（调整后）"
+    mode: ""
+    analyzer: airline_yoy
+    renderer: render_airline_yoy_answer
+  - report: "航空集团前十后十航班"
+    mode: first_flight_bottom10
+    analyzer: ranked_flights
+    renderer: render_first_flight_bottom10_answer
+  - report: "航空集团前十后十航班"
+    mode: top_metric_flight
+    analyzer: ranked_flights
+    renderer: render_top_metric_flight_answer
+  - report: "单机边际贡献"
+    mode: ""
+    analyzer: single_margin
+    renderer: render_single_margin_answer
+
+extractors:
+  - report: "航空集团收入利润概览（调整后）"
+    extractor: extract_adjusted_profit_overview_rows
+  - report: "单机边际贡献"
+    extractor: extract_single_margin_rows

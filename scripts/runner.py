@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from adapters.openclaw_contract import to_openclaw_result
@@ -456,8 +457,108 @@ def _cmd_search(args: argparse.Namespace) -> None:
         print()
 
 
+def _cmd_verify_export(args: argparse.Namespace) -> None:
+    """Handle verify-export command."""
+    from e2e.verify_export import run_verify_export_sync
+
+    case_path = Path(args.case)
+    if not case_path.exists():
+        print(f"Error: case file not found: {args.case}", file=sys.stderr)
+        sys.exit(1)
+
+    result = run_verify_export_sync(
+        case_path=case_path,
+        artifacts_dir=Path(args.artifacts) if args.artifacts else None,
+        headless=not args.no_headless,
+        timeout_ms=args.timeout,
+        download_dir=Path(args.download_dir) if args.download_dir else None,
+    )
+
+    if args.output_format == "text":
+        print(result.get("text_report", json.dumps(result, ensure_ascii=False, indent=2)))
+    else:
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+    sys.exit(0 if result.get("ok") else 1)
+
+
+def _cmd_e2e_live(args: argparse.Namespace) -> None:
+    """Handle e2e-live command: verify-export -> download -> index -> query."""
+    from e2e.verify_export import run_verify_export_sync
+
+    case_path = Path(args.case)
+    if not case_path.exists():
+        print(f"Error: case file not found: {args.case}", file=sys.stderr)
+        sys.exit(1)
+
+    artifacts_dir = Path(args.artifacts)
+
+    # Step 1: verify-export
+    print("=== Step 1/4: Page-Export Consistency Verification ===")
+    verify_result = run_verify_export_sync(
+        case_path=case_path,
+        artifacts_dir=artifacts_dir / "verify_export",
+        headless=not args.no_headless,
+        timeout_ms=args.timeout,
+    )
+
+    if not verify_result.get("ok"):
+        print("E2E BLOCKED: page-export consistency check failed.")
+        print(verify_result.get("text_report", ""))
+        sys.exit(1)
+
+    print("Page-Export Consistency: PASS")
+
+    # Step 2-4: download -> index -> query
+    mirror_root = Path(args.mirror_root) if args.mirror_root else default_mirror_root()
+
+    # Step 2: download
+    print("=== Step 2/4: Download Reports ===")
+    download_result = download_all(
+        output_root=mirror_root,
+        overwrite="if_missing",
+    )
+    print(json.dumps(download_result, ensure_ascii=False, indent=2))
+
+    # Step 3: index
+    print("=== Step 3/4: Build Search Index ===")
+    db_path = mirror_root / "search_index" / "excel_index.db"
+    stats = build_index(
+        root=mirror_root,
+        db_path=db_path,
+        incremental=True,
+        drop_numeric=True,
+    )
+    print(json.dumps({
+        "ok": True,
+        "files_indexed": stats.files_indexed,
+        "files_skipped": stats.files_skipped,
+        "files_failed": stats.files_failed,
+    }, ensure_ascii=False))
+
+    # Step 4: query assertion
+    print("=== Step 4/4: Query Assertion ===")
+    case_config = json.loads(case_path.read_text(encoding="utf-8"))
+    test_query = case_config.get("expected", {}).get("test_query", "航司净利润同比")
+    query_result = run_query(
+        query=test_query,
+        mirror_root=mirror_root,
+        db_path=default_catalog_db(),
+        user_scope_path=mirror_root / "search_index" / "user_scope.yaml",
+        excel_index_db=db_path,
+    )
+
+    result = {
+        "ok": query_result.get("ok", False),
+        "verify_export_ok": True,
+        "steps": ["verify-export: PASS", "download: DONE", "index: DONE", "query: DONE"],
+    }
+    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    sys.exit(0 if result.get("ok") else 1)
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    known_commands = {"query", "discover", "download", "index", "search"}
+    known_commands = {"query", "discover", "download", "index", "search", "verify-export", "e2e-live"}
     if argv is None:
         import sys
         argv = sys.argv[1:]
@@ -505,6 +606,24 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p_s.add_argument("--limit", type=int, default=20)
     p_s.add_argument("keywords", nargs="+", help="Search keywords")
 
+    # verify-export command
+    p_ve = sub.add_parser("verify-export", help="Verify page data consistency with exported Excel")
+    p_ve.add_argument("--case", required=True, help="Path to test case JSON file")
+    p_ve.add_argument("--artifacts", default=None, help="Directory for test artifacts")
+    p_ve.add_argument("--no-headless", action="store_true", help="Show browser window")
+    p_ve.add_argument("--timeout", type=int, default=60000, help="Timeout in ms")
+    p_ve.add_argument("--download-dir", default=None, help="Download directory")
+    p_ve.add_argument("--output-format", choices=("json", "text"), default="json")
+
+    # e2e-live command: verify-export + download + index + query
+    p_e2e = sub.add_parser("e2e-live", help="Full E2E: verify-export -> download -> index -> query -> assertion")
+    p_e2e.add_argument("--case", required=True, help="Path to test case JSON file")
+    p_e2e.add_argument("--mirror-root", default=None, help="Mirror root for download/index")
+    p_e2e.add_argument("--auth-state", default=None, help="Path to auth state file")
+    p_e2e.add_argument("--artifacts", default="test-results/e2e", help="Directory for artifacts")
+    p_e2e.add_argument("--no-headless", action="store_true")
+    p_e2e.add_argument("--timeout", type=int, default=60000)
+
     return parser.parse_args(argv)
 
 
@@ -537,6 +656,12 @@ def main() -> None:
 
     elif args.command == "search":
         _cmd_search(args)
+
+    elif args.command == "verify-export":
+        _cmd_verify_export(args)
+
+    elif args.command == "e2e-live":
+        _cmd_e2e_live(args)
 
     else:
         parser = argparse.ArgumentParser()

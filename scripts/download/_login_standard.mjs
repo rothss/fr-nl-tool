@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 
 let playwright;
 try { playwright = require("playwright"); }
-catch { playwright = require(path.join(process.env.FR_BATCH_ROOT || "C:/Users/ZhuanZ/opm_batch", "node_modules/playwright")); }
+catch { playwright = require(path.join(process.env.FR_BATCH_ROOT || ".", "node_modules/playwright")); }
 
 const { chromium } = playwright;
 
