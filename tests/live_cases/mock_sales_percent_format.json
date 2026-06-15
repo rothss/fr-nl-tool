@@ -1,0 +1,36 @@
+{
+  "name": "mock_sales_percent_format",
+  "description": "正例：页面12.3% vs Excel 0.123 → 应PASS（百分比标准化）",
+  "report": {
+    "folder": "mock",
+    "name": "Mock Sales Report"
+  },
+  "navigation": {
+    "base_url": "http://127.0.0.1:18080",
+    "report_url": "http://127.0.0.1:18080/?scenario=page_20_percent_export_decimal"
+  },
+  "params": {},
+  "page_extract": {
+    "strategy": "dom",
+    "table_selector": "#report-table",
+    "visible_row_limit": 20
+  },
+  "export": {
+    "url": "http://127.0.0.1:18080/export/?scenario=page_20_percent_export_decimal",
+    "format": "xlsx",
+    "timeout_ms": 30000
+  },
+  "compare": {
+    "mode": "visible_prefix_ordered",
+    "allow_extra_export_rows": true,
+    "key_columns": ["航司", "月份"],
+    "value_columns": ["净利润", "同比"],
+    "numeric_tolerance": 0.01,
+    "percent_tolerance": 0.0001
+  },
+  "expected": {
+    "min_page_rows": 1,
+    "min_export_rows": 20,
+    "must_contain_columns": ["航司", "净利润", "同比"]
+  }
+}

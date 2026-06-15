@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -457,6 +458,34 @@ def _cmd_search(args: argparse.Namespace) -> None:
         print()
 
 
+def _cmd_auth_refresh(args: argparse.Namespace) -> None:
+    """Handle auth-refresh command: headed browser login → storageState."""
+    try:
+        import subprocess
+        import sys
+        script_dir = Path(__file__).resolve().parent
+        auth_script = script_dir / "e2e" / "auth_refresh.py"
+        if not auth_script.exists():
+            auth_script = script_dir / "e2e" / "auth_refresh.py"
+        cmd = [
+            sys.executable, str(auth_script),
+            "--base-url", args.base_url,
+            "--out", args.out,
+            "--login-selector", args.login_selector,
+            "--viewport-width", str(args.viewport_width),
+            "--viewport-height", str(args.viewport_height),
+        ]
+        print(f"Running auth-refresh script...")
+        print(f"  Base URL: {args.base_url}")
+        print(f"  Output:   {args.out}")
+        print(f"  A headed browser window will open. Please log in manually.")
+        result = subprocess.run(cmd, cwd=str(script_dir))
+        sys.exit(result.returncode)
+    except Exception as e:
+        print(f"auth-refresh failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def _cmd_verify_export(args: argparse.Namespace) -> None:
     """Handle verify-export command."""
     from e2e.verify_export import run_verify_export_sync
@@ -472,6 +501,8 @@ def _cmd_verify_export(args: argparse.Namespace) -> None:
         headless=not args.no_headless,
         timeout_ms=args.timeout,
         download_dir=Path(args.download_dir) if args.download_dir else None,
+        auth_state=Path(args.auth_state) if args.auth_state else None,
+        cdp_url=args.cdp_url,
     )
 
     if args.output_format == "text":
@@ -500,6 +531,8 @@ def _cmd_e2e_live(args: argparse.Namespace) -> None:
         artifacts_dir=artifacts_dir / "verify_export",
         headless=not args.no_headless,
         timeout_ms=args.timeout,
+        auth_state=Path(args.auth_state) if args.auth_state else None,
+        cdp_url=args.cdp_url,
     )
 
     if not verify_result.get("ok"):
@@ -509,16 +542,39 @@ def _cmd_e2e_live(args: argparse.Namespace) -> None:
 
     print("Page-Export Consistency: PASS")
 
-    # Step 2-4: download -> index -> query
+    # Step 2-4: verified export → index → query
     mirror_root = Path(args.mirror_root) if args.mirror_root else default_mirror_root()
 
-    # Step 2: download
-    print("=== Step 2/4: Download Reports ===")
-    download_result = download_all(
-        output_root=mirror_root,
-        overwrite="if_missing",
-    )
-    print(json.dumps(download_result, ensure_ascii=False, indent=2))
+    verified_path = verify_result.get("verified_export_path", "")
+    verified_hash = verify_result.get("verified_export_hash", "")
+    case_config = json.loads(case_path.read_text(encoding="utf-8"))
+
+    if args.download_mode == "batch":
+        # Batch mode: download all reports (original behavior)
+        print("=== Step 2/4: Download Reports (batch) ===")
+        download_result = download_all(
+            output_root=mirror_root,
+            overwrite="if_missing",
+        )
+        print(json.dumps(download_result, ensure_ascii=False, indent=2))
+    else:
+        # Default: copy verified export into mirror root
+        print("=== Step 2/4: Place Verified Export into Mirror ===")
+        if verified_path and verified_hash:
+            src = Path(verified_path)
+            if src.exists():
+                report_folder = case_config.get("report", {}).get("folder", "verified")
+                report_name = case_config.get("report", {}).get("name", "verified_report")
+                export_target_path = mirror_root / report_folder / f"{report_name}.xlsx"
+                export_target_path.parent.mkdir(parents=True, exist_ok=True)
+                import shutil
+                shutil.copy2(str(src), str(export_target_path))
+                print(f"  Verified export copied to: {export_target_path}")
+                print(f"  SHA256: {verified_hash}")
+            else:
+                print(f"  ⚠ Verified export file not found: {verified_path}")
+        else:
+            print(f"  ⚠ No verified export from verify-export step")
 
     # Step 3: index
     print("=== Step 3/4: Build Search Index ===")
@@ -538,7 +594,6 @@ def _cmd_e2e_live(args: argparse.Namespace) -> None:
 
     # Step 4: query assertion
     print("=== Step 4/4: Query Assertion ===")
-    case_config = json.loads(case_path.read_text(encoding="utf-8"))
     test_query = case_config.get("expected", {}).get("test_query", "航司净利润同比")
     query_result = run_query(
         query=test_query,
@@ -558,7 +613,8 @@ def _cmd_e2e_live(args: argparse.Namespace) -> None:
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    known_commands = {"query", "discover", "download", "index", "search", "verify-export", "e2e-live"}
+    known_commands = {"query", "discover", "download", "index", "search",
+                      "verify-export", "e2e-live", "auth-refresh"}
     if argv is None:
         import sys
         argv = sys.argv[1:]
@@ -614,15 +670,30 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p_ve.add_argument("--timeout", type=int, default=60000, help="Timeout in ms")
     p_ve.add_argument("--download-dir", default=None, help="Download directory")
     p_ve.add_argument("--output-format", choices=("json", "text"), default="json")
+    p_ve.add_argument("--auth-state", default=None, help="Path to Playwright storageState JSON")
+    p_ve.add_argument("--cdp-url", default=None, help="CDP endpoint for logged-in browser")
 
     # e2e-live command: verify-export + download + index + query
     p_e2e = sub.add_parser("e2e-live", help="Full E2E: verify-export -> download -> index -> query -> assertion")
     p_e2e.add_argument("--case", required=True, help="Path to test case JSON file")
     p_e2e.add_argument("--mirror-root", default=None, help="Mirror root for download/index")
-    p_e2e.add_argument("--auth-state", default=None, help="Path to auth state file")
+    p_e2e.add_argument("--auth-state", default=None, help="Path to Playwright storageState JSON")
+    p_e2e.add_argument("--cdp-url", default=None, help="CDP endpoint for logged-in browser")
     p_e2e.add_argument("--artifacts", default="test-results/e2e", help="Directory for artifacts")
     p_e2e.add_argument("--no-headless", action="store_true")
     p_e2e.add_argument("--timeout", type=int, default=60000)
+    p_e2e.add_argument("--download-mode", choices=("verified-export", "batch"), default="verified-export",
+                       help="How to get export data into the index: verified-export (use verify step's output) or batch (run download_all)")
+
+    # auth-refresh command
+    p_ar = sub.add_parser("auth-refresh", help="Headed browser login to save Playwright storageState")
+    p_ar.add_argument("--base-url", default=os.getenv("FR_BASE_URL", "http://localhost:8075/webroot/decision"),
+                      help="OPM/FineReport base URL (default: $FR_BASE_URL)")
+    p_ar.add_argument("--out", default=".auth/fr-opm.json", help="Output path for storageState JSON")
+    p_ar.add_argument("--login-selector", default="text=决策平台",
+                      help="Selector that confirms successful login")
+    p_ar.add_argument("--viewport-width", type=int, default=1280)
+    p_ar.add_argument("--viewport-height", type=int, default=900)
 
     return parser.parse_args(argv)
 
@@ -662,6 +733,9 @@ def main() -> None:
 
     elif args.command == "e2e-live":
         _cmd_e2e_live(args)
+
+    elif args.command == "auth-refresh":
+        _cmd_auth_refresh(args)
 
     else:
         parser = argparse.ArgumentParser()

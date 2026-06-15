@@ -3,6 +3,11 @@ Page data extraction.
 
 Handles extracting page-snapshot data from browser DOM or network interception.
 Produces standardized page_snapshot structure for consistency comparison.
+
+Enhanced with:
+  - FineReport network response adapter (via finereport_adapters)
+  - iframe / aria grid DOM traversal
+  - Page stability detection (loading indicator wait, row count stabilization)
 """
 
 from __future__ import annotations
@@ -14,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .browser_session import BrowserSession
+from .finereport_adapters import try_all_adapters
 from .normalize_table import normalize_rows
 
 

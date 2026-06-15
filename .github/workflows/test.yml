@@ -100,6 +100,36 @@ jobs:
       env:
         FR_MIRROR_ROOT: ./test_mirror
 
+    - name: Run verify-export negative case (value mismatch → should FAIL)
+      run: |
+        python scripts/runner.py verify-export \
+          --case tests/live_cases/mock_sales_value_diff.json \
+          --artifacts test-results/page_export/mock_value_diff \
+          --output-format json
+      continue-on-error: true
+      env:
+        FR_MIRROR_ROOT: ./test_mirror
+
+    - name: Run verify-export negative case (extra rows in current_page_equal → should FAIL)
+      run: |
+        python scripts/runner.py verify-export \
+          --case tests/live_cases/mock_sales_extra_export_rows_fail.json \
+          --artifacts test-results/page_export/mock_extra_rows \
+          --output-format json
+      continue-on-error: true
+      env:
+        FR_MIRROR_ROOT: ./test_mirror
+
+    - name: Run verify-export negative case (page rows missing from export → should FAIL)
+      run: |
+        python scripts/runner.py verify-export \
+          --case tests/live_cases/mock_sales_rows_missing.json \
+          --artifacts test-results/page_export/mock_rows_missing \
+          --output-format json
+      continue-on-error: true
+      env:
+        FR_MIRROR_ROOT: ./test_mirror
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -144,12 +174,27 @@ jobs:
         pip install playwright pandas
         python -m playwright install chromium --with-deps
 
-    - name: Run live verify-export
+    - name: Check auth state exists
       run: |
-        python scripts/runner.py verify-export \
-          --case tests/live_cases/opm_airline_profit_yoy.json \
+        if [ -z "$FR_AUTH_STATE_PATH" ] || [ ! -f "$FR_AUTH_STATE_PATH" ]; then
+          echo "ERROR: FR_AUTH_STATE_PATH is not set or file not found"
+          exit 1
+        fi
+
+    - name: Check FR_BASE_URL
+      run: |
+        if [ -z "$FR_BASE_URL" ]; then
+          echo "ERROR: FR_BASE_URL is not set"
+          exit 1
+        fi
+
+    - name: Run live E2E (verify-export → index → query)
+      run: |
+        python scripts/runner.py e2e-live \
+          --case tests/live_cases/opm_airline_profit_yoy.example.json \
           --auth-state "$FR_AUTH_STATE_PATH" \
-          --artifacts test-results/page_export/live \
+          --artifacts test-results/e2e/live \
+          --download-mode verified-export \
           --output-format text
       env:
         FR_MIRROR_ROOT: ./test_mirror

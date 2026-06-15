@@ -41,6 +41,8 @@ async def verify_export(
     headless: bool = True,
     timeout_ms: int = 60000,
     download_dir: Path | None = None,
+    auth_state: Path | None = None,
+    cdp_url: str | None = None,
 ) -> dict[str, Any]:
     """Run page-export consistency verification.
 
@@ -50,6 +52,8 @@ async def verify_export(
         headless: Run browser in headless mode
         timeout_ms: Overall timeout in milliseconds
         download_dir: Directory for downloaded exports
+        auth_state: Path to Playwright storageState JSON for authenticated sessions
+        cdp_url: CDP endpoint URL for connecting to an already-logged-in browser
 
     Returns:
         Verification result dict
@@ -78,6 +82,9 @@ async def verify_export(
             headless=headless,
             timeout_ms=timeout_ms,
             download_dir=download_dir,
+            auth_state=auth_state,
+            cdp_url=cdp_url,
+            artifacts_dir=artifacts_dir,
         ) as session:
             # Navigate to report
             report_url = navigate_cfg.get("report_url", "")
@@ -214,6 +221,13 @@ async def verify_export(
     artifacts.save_json("manifest.json", manifest)
 
     # 9. Format result
+    def _find_export_file(artifacts_dir: Path) -> str:
+        """Find the downloaded export xlsx file in artifacts."""
+        for f in artifacts_dir.iterdir():
+            if f.suffix.lower() in (".xlsx", ".xls") and f.stat().st_size > 100:
+                return str(f.resolve())
+        return ""
+
     result = {
         "ok": compare_result.get("ok", False),
         "case_name": case_name,
@@ -222,6 +236,8 @@ async def verify_export(
         "compare_result": compare_result,
         "errors": errors,
         "artifacts_dir": str(artifacts.base_dir),
+        "verified_export_path": _find_export_file(artifacts.base_dir),
+        "verified_export_hash": export_snapshot.get("file_hash", ""),
         "manifest": manifest,
         "text_report": format_compare_result(
             compare_result,
@@ -240,6 +256,8 @@ def run_verify_export_sync(
     headless: bool = True,
     timeout_ms: int = 60000,
     download_dir: Path | None = None,
+    auth_state: Path | None = None,
+    cdp_url: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous wrapper for verify_export."""
     return asyncio.run(verify_export(
@@ -248,6 +266,8 @@ def run_verify_export_sync(
         headless=headless,
         timeout_ms=timeout_ms,
         download_dir=download_dir,
+        auth_state=auth_state,
+        cdp_url=cdp_url,
     ))
 
 
