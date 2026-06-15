@@ -108,13 +108,20 @@ def extract_export_snapshot(
     fill_merged = cfg.get("fill_merged_cells", True)
     allow_extra_export_rows = cfg.get("allow_extra_export_rows", True)
 
+    # Config-driven extraction hints
+    target_sheet_name = cfg.get("sheet_name")
+    explicit_header_row = cfg.get("header_row")      # 1-based row index in config
+    data_start_row = cfg.get("data_start_row")        # 1-based row index in config
+
     wb = load_workbook(file_path, data_only=True)
     try:
         sheet_names = wb.sheetnames
         all_rows: list[dict] = []
-        primary_sheet_name = sheet_names[0] if sheet_names else "Sheet1"
+        # Use configured sheet_name, filter to first match, or fall back to all
+        sheets_to_read = [target_sheet_name] if target_sheet_name and target_sheet_name in sheet_names else sheet_names
+        primary_sheet_name = sheets_to_read[0] if sheets_to_read else "Sheet1"
 
-        for sheet_name in sheet_names:
+        for sheet_name in sheets_to_read:
             ws = wb[sheet_name]
             raw_rows = [
                 [cell for cell in row]
@@ -123,16 +130,29 @@ def extract_export_snapshot(
             if not raw_rows:
                 continue
 
-            header_idx = _detect_header_row(raw_rows)
+            # ── Header detection (config overrides auto-detect) ──
+            if explicit_header_row and explicit_header_row >= 1:
+                header_idx = explicit_header_row - 1  # 1-based → 0-based
+            else:
+                header_idx = _detect_header_row(raw_rows)
             headers = [_clean_cell(v) for v in raw_rows[header_idx]]
             headers = [h for h in headers if h]
             if not headers:
                 continue
             headers = _dedup_columns(headers)
 
-            for row_data in raw_rows[header_idx + 1:]:
+            # ── Data row range ──
+            start_idx = header_idx + 1
+            if data_start_row and data_start_row >= 1:
+                start_idx = data_start_row - 1  # 1-based → 0-based
+            row_payload = raw_rows[start_idx:]
+
+            # ── Fill merged cells if requested ──
+            if fill_merged:
+                row_payload = fill_merged_cells(row_payload)
+
+            for row_data in row_payload:
                 values = [_clean_cell(v) for v in row_data[:len(headers)]]
-                # Pad if row has fewer values than headers
                 if len(values) < len(headers):
                     values.extend([""] * (len(headers) - len(values)))
                 row_dict = dict(zip(headers, values))

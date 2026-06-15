@@ -72,6 +72,9 @@ async def verify_export(
     artifacts.ensure_dirs()
 
     errors: list[str] = []
+    run_context: dict = {"case_name": case_name, "report": {}, "params": params, "page_state": {},
+                          "page_data_request": {}, "page_data_response": {}, "export_request": {},
+                          "export_file": {}}
 
     try:
         # 3. Open browser and navigate
@@ -94,6 +97,7 @@ async def verify_export(
                 report_name_nav = case.get("report", {}).get("name", "")
                 report_url = f"{base_url}/?folder={report_folder}&report={report_name_nav}"
 
+            run_context["report"] = {"name": report_name, "url": report_url}
             await session.navigate(report_url)
 
             # Apply filter parameters if any
@@ -104,6 +108,24 @@ async def verify_export(
 
             await session.page.wait_for_timeout(2000)
 
+            # Try to capture page state (total_count/page_index/page_size)
+            try:
+                page_state = await session.page.evaluate("""() => {
+                    const state = {page_index: 1, page_size: null, total_count: null};
+                    const pagination = document.querySelector('.fr-pagination, .pagination');
+                    if (pagination) {
+                        const text = pagination.textContent || '';
+                        const totalM = text.match(/(\\d+)\\s*(?:条|条记录|total|records)/i);
+                        if (totalM) state.total_count = parseInt(totalM[1]);
+                        const pageM = text.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
+                        if (pageM) { state.page_index = parseInt(pageM[1]); state.page_size = parseInt(pageM[2]); }
+                    }
+                    return state;
+                }""")
+                run_context["page_state"] = page_state
+            except Exception:
+                pass
+
             # Take screenshot before export
             try:
                 await session.take_screenshot(artifacts.path("page_before_export.png"))
@@ -113,6 +135,12 @@ async def verify_export(
             # 4. Extract page data
             page_snapshot = await extract_page_snapshot_async(session, case)
             save_page_snapshot(page_snapshot, artifacts.path("page_snapshot.json"))
+
+            # Record page data request metadata
+            run_context["page_data_response"] = {
+                "rows_extracted": len(page_snapshot.get("rows", [])),
+                "hash": page_snapshot.get("raw_hash", ""),
+            }
 
             # Validate page data
             expected_cfg = case.get("expected", {})
@@ -131,20 +159,33 @@ async def verify_export(
             # 5. Click export and download
             export_cfg = case.get("export", {})
             export_url = export_cfg.get("url", "")
+            export_steps = export_cfg.get("steps")
 
             if export_url:
                 # Direct download from mock server
                 import urllib.request
                 export_path = artifacts.path("export.xlsx")
                 urllib.request.urlretrieve(export_url, str(export_path))
-            else:
-                # Use browser interaction
-                export_path = await session.click_export_and_download(
-                    button_text=export_cfg.get("button_text", "导出"),
+                run_context["export_request"] = {"method": "GET", "url": export_url}
+            elif export_steps:
+                # Multi-step export
+                export_path = await session.click_export_multistep(
+                    steps=export_steps,
                     download_timeout_ms=export_cfg.get("timeout_ms", 60000),
                 )
                 if export_path:
-                    # Move to artifacts
+                    target = artifacts.path("export.xlsx")
+                    target.write_bytes(export_path.read_bytes())
+                    export_path = target
+                run_context["export_request"] = {"method": "multistep", "steps": export_steps}
+            else:
+                # Single button export
+                export_path = await session.click_export_and_download(
+                    button_text=export_cfg.get("button_text", "导出"),
+                    button_selector=export_cfg.get("button_selector"),
+                    download_timeout_ms=export_cfg.get("timeout_ms", 60000),
+                )
+                if export_path:
                     target = artifacts.path("export.xlsx")
                     target.write_bytes(export_path.read_bytes())
                     export_path = target
@@ -165,6 +206,12 @@ async def verify_export(
             compare_cfg = case.get("compare", {})
             export_snapshot = extract_export_snapshot(export_path, compare_config=compare_cfg)
             save_export_snapshot(export_snapshot, artifacts.path("export_snapshot.json"))
+            # Record export file metadata
+            run_context["export_file"] = {
+                "path": str(export_path.resolve()),
+                "hash": export_snapshot.get("file_hash", ""),
+                "row_count": export_snapshot.get("row_count", 0),
+            }
         except Exception as e:
             errors.append(f"export_parse_failed: {e}")
 
@@ -219,6 +266,7 @@ async def verify_export(
         "errors": errors,
     }
     artifacts.save_json("manifest.json", manifest)
+    artifacts.save_json("run_context.json", run_context)
 
     # 9. Format result
     def _find_export_file(artifacts_dir: Path) -> str:

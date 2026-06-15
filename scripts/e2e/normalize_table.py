@@ -70,17 +70,42 @@ def _try_parse_number(raw: object) -> tuple[bool, float | None]:
     s = str(raw).strip()
     if not s:
         return False, None
+
+    # Handle negative parentheses: (1,234.50) → -1234.5
+    negative = False
+    if s.startswith("(") and s.endswith(")"):
+        s = s[1:-1]
+        negative = True
+
     # Remove thousands separators: both comma and Chinese-style
     cleaned = s.replace(",", "").replace("，", "")
     # Remove leading currency symbols
     cleaned = re.sub(r"^[¥$€£￥\s]+", "", cleaned)
     # Remove trailing currency symbols
     cleaned = re.sub(r"[¥$€£￥\s]+$", "", cleaned)
+
+    # Handle Chinese units: 1.2万 → 12000, 3.5亿 → 350000000
+    wan_match = re.match(r"^([\d.]+)\s*万$", cleaned)
+    if wan_match:
+        try:
+            val = float(wan_match.group(1)) * 10000
+            return True, -val if negative else val
+        except (ValueError, TypeError):
+            return False, None
+
+    yi_match = re.match(r"^([\d.]+)\s*亿$", cleaned)
+    if yi_match:
+        try:
+            val = float(yi_match.group(1)) * 100000000
+            return True, -val if negative else val
+        except (ValueError, TypeError):
+            return False, None
+
     try:
         val = float(cleaned)
         if math.isnan(val) or math.isinf(val):
             return False, None
-        return True, val
+        return True, -val if negative else val
     except (ValueError, TypeError):
         return False, None
 

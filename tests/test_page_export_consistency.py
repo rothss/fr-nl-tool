@@ -512,6 +512,92 @@ class TestNumberFormatConsistency(unittest.TestCase):
         )
         self.assertTrue(result["ok"], f"Expected PASS but got: {result}")
 
+    def test_negative_parentheses(self):
+        """(1,234.50) should normalize to -1234.5"""
+        page = [
+            {"航司": "东航", "月份": "2026-05", "净利润": "(1,234.50)", "同比": 0.05},
+        ]
+        export = [
+            {"航司": "东航", "月份": "2026-05", "净利润": -1234.5, "同比": 0.05},
+        ]
+        from e2e.normalize_table import normalize_rows
+        page_norm = normalize_rows(
+            page, numeric_columns=["净利润"], percent_columns=["同比"],
+            fill_merged=False,
+        )
+        export_norm = normalize_rows(
+            export, numeric_columns=["净利润"], percent_columns=["同比"],
+            fill_merged=False,
+        )
+        result = compare_visible_subset_by_key(
+            page_norm, export_norm,
+            key_columns=["航司", "月份"],
+            value_columns=["净利润", "同比"],
+        )
+        self.assertTrue(result["ok"], f"Expected PASS but got: {result}")
+
+    def test_chinese_wan_unit(self):
+        """1.2万 should normalize to 12000"""
+        page = [
+            {"航司": "东航", "月份": "2026-05", "净利润": "1.2万", "同比": 0.05},
+        ]
+        export = [
+            {"航司": "东航", "月份": "2026-05", "净利润": 12000, "同比": 0.05},
+        ]
+        from e2e.normalize_table import normalize_rows
+        page_norm = normalize_rows(
+            page, numeric_columns=["净利润"], percent_columns=["同比"],
+            fill_merged=False,
+        )
+        export_norm = normalize_rows(
+            export, numeric_columns=["净利润"], percent_columns=["同比"],
+            fill_merged=False,
+        )
+        result = compare_visible_subset_by_key(
+            page_norm, export_norm,
+            key_columns=["航司", "月份"],
+            value_columns=["净利润", "同比"],
+        )
+        self.assertTrue(result["ok"], f"Expected PASS but got: {result}")
+
+    def test_chinese_yi_unit(self):
+        """3.5亿 should normalize to 350000000"""
+        page = [
+            {"航司": "东航", "月份": "2026-05", "净利润": "3.5亿", "同比": 0.05},
+        ]
+        export = [
+            {"航司": "东航", "月份": "2026-05", "净利润": 350000000, "同比": 0.05},
+        ]
+        from e2e.normalize_table import normalize_rows
+        page_norm = normalize_rows(
+            page, numeric_columns=["净利润"], percent_columns=["同比"],
+            fill_merged=False,
+        )
+        export_norm = normalize_rows(
+            export, numeric_columns=["净利润"], percent_columns=["同比"],
+            fill_merged=False,
+        )
+        result = compare_visible_subset_by_key(
+            page_norm, export_norm,
+            key_columns=["航司", "月份"],
+            value_columns=["净利润", "同比"],
+        )
+        self.assertTrue(result["ok"], f"Expected PASS but got: {result}")
+
+    def test_chinese_wan_no_config_needed(self):
+        """Chinese 万 unit should work without explicit config (auto-detect)"""
+        from e2e.normalize_table import _try_parse_number
+        ok, val = _try_parse_number("1.2万")
+        self.assertTrue(ok)
+        self.assertAlmostEqual(val, 12000)
+
+    def test_negative_parentheses_no_config_needed(self):
+        """Negative parentheses should work without explicit config"""
+        from e2e.normalize_table import _try_parse_number
+        ok, val = _try_parse_number("(1234.50)")
+        self.assertTrue(ok)
+        self.assertAlmostEqual(val, -1234.50)
+
 
 class TestFormatCompareResult(unittest.TestCase):
     """Test human-readable formatting."""

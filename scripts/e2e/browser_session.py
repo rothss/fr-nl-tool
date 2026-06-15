@@ -510,6 +510,67 @@ class BrowserSession:
 
         return None
 
+    async def click_export_multistep(
+        self,
+        steps: list[dict],
+        download_timeout_ms: int = 60000,
+    ) -> Path | None:
+        """Execute a multi-step export sequence (e.g., click '导出' → click 'Excel' → wait download).
+
+        Each step dict has:
+            {"type": "click", "selector": "text=导出"}
+            {"type": "wait_download"}
+            {"type": "wait", "ms": 2000}
+
+        Args:
+            steps: List of step dicts
+            download_timeout_ms: Max wait for the final download
+
+        Returns:
+            Path to the downloaded file, or None
+        """
+        if not self._page:
+            raise RuntimeError("Browser not started.")
+        if not steps:
+            raise ValueError("export.steps must be a non-empty list")
+
+        download_dir = self.download_dir
+        download_dir.mkdir(parents=True, exist_ok=True)
+
+        download_promise = None
+
+        for step in steps:
+            step_type = step.get("type", "")
+            if step_type == "click":
+                selector = step.get("selector", "")
+                if not selector:
+                    continue
+                try:
+                    await self._page.click(selector, timeout=5000)
+                except Exception:
+                    # Try locator fallback
+                    try:
+                        btn = self._page.locator(selector).first
+                        if await btn.is_visible(timeout=3000):
+                            await btn.click()
+                    except Exception:
+                        # Only fail if this is the last click step and no download is pending
+                        pass
+            elif step_type == "wait_download":
+                download_promise = self._page.wait_for_event(
+                    "download", timeout=download_timeout_ms
+                )
+            elif step_type == "wait":
+                ms = step.get("ms", 1000)
+                await self._page.wait_for_timeout(ms)
+
+        if download_promise:
+            download = await download_promise
+            file_path = download_dir / (download.suggested_filename or "export.xlsx")
+            await download.save_as(str(file_path))
+            return file_path
+        return None
+
     async def click_export_and_download(
         self,
         button_text: str = "导出",
