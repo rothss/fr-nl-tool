@@ -234,8 +234,8 @@ class BrowserSession:
         self._page.on("console", lambda msg: self._logs.append(f"[{msg.type}] {msg.text}"))
         self._page.on("pageerror", lambda err: self._errors.append(str(err)))
         self._page.on("requestfailed", lambda req: self._request_failures.append({
-            "url": req.url[:200],
-            "error": req.failure.error_text if req.failure else "unknown",
+            "url": str(req.url)[:200] if hasattr(req, 'url') else str(req)[:200],
+            "error": str(getattr(req, 'failure', 'unknown')),
         }))
 
     async def _save_artifacts(self):

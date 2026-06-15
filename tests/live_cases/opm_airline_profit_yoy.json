@@ -1,0 +1,44 @@
+{
+  "name": "opm_airline_profit_yoy",
+  "description": "Live E2E: OPM 航空集团经营提升分析/1净利润",
+  "report": {
+    "folder": "航空集团经营提升分析",
+    "name": "1净利润"
+  },
+  "navigation": {
+    "report_url": "https://opm.hnair.net/webroot/decision/view/report?viewlet=航空集团经营提升分析/1净利润.cpt",
+    "login_success_selector": "text=决策平台"
+  },
+  "params": {},
+  "page_extract": {
+    "strategy": "dom",
+    "table_selector": "table",
+    "visible_row_limit": 20,
+    "wait_until": "networkidle"
+  },
+  "export": {
+    "button_text": "导出",
+    "format": "xlsx",
+    "timeout_ms": 120000
+  },
+  "compare": {
+    "mode": "visible_prefix_ordered",
+    "allow_extra_export_rows": true,
+    "value_columns": [],
+    "numeric_tolerance": 0.01,
+    "percent_tolerance": 0.0001,
+    "allow_row_reorder": true
+  },
+  "expected": {
+    "min_page_rows": 1,
+    "min_export_rows": 1,
+    "test_query": "净利润"
+  },
+  "wait": {
+    "network_idle_ms": 3000,
+    "table_stable_ms": 2000,
+    "loading_selectors": [".loading", ".fr-loading", ".x-loading"],
+    "ready_selectors": ["iframe", "table", ".fr-table"],
+    "max_wait_ms": 120000
+  }
+}
