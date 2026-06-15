@@ -69,7 +69,7 @@ def main() -> None:
             missing.append(filename)
         elif filename in JSON_TO_VALIDATE:
             try:
-                json.load(fp.read_text(encoding="utf-8"))
+                json.loads(fp.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, Exception) as e:
                 json_errors.append(f"{filename}: {e}")
 

@@ -31,8 +31,8 @@ def _sha256_hex(data: bytes) -> str:
 
 
 def _file_hash(path: Path) -> str:
-    """Compute SHA-256 hash of a file."""
-    return _sha256_hex(path.read_bytes())
+    """Compute SHA-256 hash of a file, prefixed with 'sha256:'."""
+    return "sha256:" + _sha256_hex(path.read_bytes())
 
 
 def _dedup_columns(cols: list[str]) -> list[str]:
@@ -147,10 +147,6 @@ def extract_export_snapshot(
                 start_idx = data_start_row - 1  # 1-based → 0-based
             row_payload = raw_rows[start_idx:]
 
-            # ── Fill merged cells if requested ──
-            if fill_merged:
-                row_payload = fill_merged_cells(row_payload)
-
             for row_data in row_payload:
                 values = [_clean_cell(v) for v in row_data[:len(headers)]]
                 if len(values) < len(headers):
@@ -158,6 +154,10 @@ def extract_export_snapshot(
                 row_dict = dict(zip(headers, values))
                 if _is_meaningful_row(row_dict):
                     all_rows.append(row_dict)
+
+        # Fill merged cells on the dict-level rows (not raw list rows)
+        if fill_merged:
+            all_rows = fill_merged_cells(all_rows)
 
         # Determine which columns to use for comparison
         all_columns = list(all_rows[0].keys()) if all_rows else []

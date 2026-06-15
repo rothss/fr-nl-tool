@@ -377,7 +377,8 @@ class BrowserSession:
                         }});
                     }}
                     const dataRows = [];
-                    const startIdx = el.querySelector('thead') ? 0 : 1;
+                    const theadRows = el.querySelector('thead') ? el.querySelector('thead').querySelectorAll('tr').length : 0;
+                    const startIdx = theadRows > 0 ? theadRows : 1;
                     for (let i = startIdx; i < rows.length; i++) {{
                         const cells = rows[i].querySelectorAll('td, th');
                         if (cells.length === 0) continue;

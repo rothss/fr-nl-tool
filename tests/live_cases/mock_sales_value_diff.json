@@ -16,7 +16,7 @@
     "visible_row_limit": 20
   },
   "export": {
-    "url": "http://127.0.0.1:18080/export/?scenario=page_20_export_3000_values_shifted",
+    "url": "http://127.0.0.1:18080/export/?scenario=page_20_export_3000_mismatch",
     "format": "xlsx",
     "timeout_ms": 30000
   },
