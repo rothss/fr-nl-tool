@@ -36,6 +36,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Compile Python files
+      run: |
+        python -m py_compile scripts/runner.py
+        python -m py_compile scripts/e2e/*.py
+        python -m py_compile tests/test_page_export_consistency.py
+        python -m py_compile tests/mock_fr_server/server.py
+
     - name: Run tests
       run: |
         python -m unittest discover -s tests -p "test_*.py" -v
@@ -58,6 +65,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pandas  # required by mock server fixtures
+
+    - name: Compile Python files
+      run: |
+        python -m py_compile scripts/runner.py
+        python -m py_compile scripts/e2e/*.py
+        python -m py_compile tests/test_page_export_consistency.py
+        python -m py_compile tests/mock_fr_server/server.py
 
     - name: Run page-export consistency unit tests
       run: |
@@ -100,33 +114,54 @@ jobs:
       env:
         FR_MIRROR_ROOT: ./test_mirror
 
-    - name: Run verify-export negative case (value mismatch → should FAIL)
+    - name: Run verify-export negative case (value mismatch → must FAIL)
       run: |
+        set +e
         python scripts/runner.py verify-export \
           --case tests/live_cases/mock_sales_value_diff.json \
           --artifacts test-results/page_export/mock_value_diff \
           --output-format json
-      continue-on-error: true
+        code=$?
+        set -e
+        if [ "$code" -eq 0 ]; then
+          echo "FAIL: expected mock_sales_value_diff to fail but it passed"
+          exit 1
+        fi
+        echo "Negative case value_diff failed as expected"
       env:
         FR_MIRROR_ROOT: ./test_mirror
 
-    - name: Run verify-export negative case (extra rows in current_page_equal → should FAIL)
+    - name: Run verify-export negative case (extra rows in current_page_equal → must FAIL)
       run: |
+        set +e
         python scripts/runner.py verify-export \
           --case tests/live_cases/mock_sales_extra_export_rows_fail.json \
           --artifacts test-results/page_export/mock_extra_rows \
           --output-format json
-      continue-on-error: true
+        code=$?
+        set -e
+        if [ "$code" -eq 0 ]; then
+          echo "FAIL: expected mock_sales_extra_export_rows_fail to fail but it passed"
+          exit 1
+        fi
+        echo "Negative case extra_rows failed as expected"
       env:
         FR_MIRROR_ROOT: ./test_mirror
 
-    - name: Run verify-export negative case (page rows missing from export → should FAIL)
+    - name: Run verify-export negative case (page rows missing from export → must FAIL)
       run: |
+        set +e
         python scripts/runner.py verify-export \
           --case tests/live_cases/mock_sales_rows_missing.json \
           --artifacts test-results/page_export/mock_rows_missing \
           --output-format json
-      continue-on-error: true
+        code=$?
+        set -e
+        if [ "$code" -eq 0 ]; then
+          echo "FAIL: expected mock_sales_rows_missing to fail but it passed"
+          exit 1
+        fi
+        echo "Negative case rows_missing failed as expected"
       env:
         FR_MIRROR_ROOT: ./test_mirror
 
@@ -192,8 +227,6 @@ jobs:
           --case tests/live_cases/opm_airline_profit_yoy.example.json \
           --auth-state "$FR_AUTH_STATE_PATH" \
           --artifacts test-results/e2e/live \
-          --download-mode verified-export \
-          --output-format text
+          --download-mode verified-export
       env:
         FR_MIRROR_ROOT: ./test_mirror
-      continue-on-error: true

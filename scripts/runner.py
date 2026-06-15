@@ -576,6 +576,18 @@ def _cmd_e2e_live(args: argparse.Namespace) -> None:
         else:
             print(f"  ⚠ No verified export from verify-export step")
 
+    # ── Compute indexed file hash ──
+    import hashlib
+    indexed_file_hash = ""
+    hash_match = False
+    if export_target_path and export_target_path.exists():
+        h = hashlib.sha256()
+        with export_target_path.open("rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                h.update(chunk)
+        indexed_file_hash = "sha256:" + h.hexdigest()
+        hash_match = (indexed_file_hash == verified_hash) if verified_hash else True
+
     # Step 3: index
     print("=== Step 3/4: Build Search Index ===")
     db_path = mirror_root / "search_index" / "excel_index.db"
@@ -604,10 +616,17 @@ def _cmd_e2e_live(args: argparse.Namespace) -> None:
     )
 
     result = {
-        "ok": query_result.get("ok", False),
+        "ok": query_result.get("ok", False) and hash_match,
         "verify_export_ok": True,
-        "steps": ["verify-export: PASS", "download: DONE", "index: DONE", "query: DONE"],
+        "verified_export_path": verified_path,
+        "verified_export_hash": verified_hash,
+        "indexed_file_path": str(export_target_path) if export_target_path else "",
+        "indexed_file_hash": indexed_file_hash,
+        "hash_match": hash_match,
+        "steps": ["verify-export: PASS", "place-verified-export: DONE", "index: DONE", "query: DONE"],
     }
+    if not hash_match and verified_hash:
+        print("E2E FAILED: indexed file hash does not match verified export hash")
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     sys.exit(0 if result.get("ok") else 1)
 
