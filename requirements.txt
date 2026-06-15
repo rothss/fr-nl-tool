@@ -3,6 +3,7 @@
 
 # Excel processing
 openpyxl>=3.1.0
+pandas>=1.5.0
 
 # YAML parsing
 pyyaml>=6.0
@@ -12,3 +13,6 @@ python-dotenv>=1.0.0
 
 # Data processing (optional, for analysis modules)
 numpy>=1.24.0,<2.0.0
+
+# Optional: for page-export consistency verification
+# playwright>=1.40.0  # Uncomment if using browser-based verification
