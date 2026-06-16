@@ -49,8 +49,8 @@ JSON_TO_VALIDATE = [
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate artifacts completeness")
     parser.add_argument("--artifacts", required=True, help="Path to artifacts directory")
-    parser.add_argument("--expect", choices=("pass", "fail"), required=True,
-                        help="Expected case outcome")
+    parser.add_argument("--expect", choices=("pass", "fail", "live-fail-debug"), required=True,
+                        help="Expected case outcome (pass/fail/live-fail-debug)")
 
     args = parser.parse_args()
     artifacts_dir = Path(args.artifacts)
@@ -63,6 +63,24 @@ def main() -> None:
     missing: list[str] = []
     json_errors: list[str] = []
 
+    # live-fail-debug mode: check diagnostic artifacts for iframe debugging
+    if args.expect == "live-fail-debug":
+        required = [
+            "page_snapshot.json",
+            "manifest.json",
+            "run_context.json",
+            "page_before_export.png",
+        ]
+        # At least one of frame_tree or frame_tree_timeout must exist
+        has_frame = (artifacts_dir / "frame_tree.json").exists()
+        has_timeout = (artifacts_dir / "frame_tree_timeout.json").exists()
+        if not has_frame and not has_timeout:
+            missing.append("frame_tree.json OR frame_tree_timeout.json")
+
+    optional = ["trace.zip", "network.har", "browser_console.log", "request_failed.json"]
+    if args.expect == "live-fail-debug":
+        optional += ["frame_tree.json", "frame_tree_timeout.json", "candidate_network_responses.json"]
+
     for filename in required:
         fp = artifacts_dir / filename
         if not fp.exists():
@@ -74,7 +92,6 @@ def main() -> None:
                 json_errors.append(f"{filename}: {e}")
 
     # Optional traces: log if present/missing but don't fail
-    optional = ["trace.zip", "network.har", "browser_console.log", "request_failed.json"]
     optional_present = [f for f in optional if (artifacts_dir / f).exists()]
     optional_missing = [f for f in optional if not (artifacts_dir / f).exists()]
 

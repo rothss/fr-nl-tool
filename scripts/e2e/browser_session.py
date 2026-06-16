@@ -312,6 +312,8 @@ class BrowserSession:
         table_selector: str = "table",
         strategy: str = "dom",
         data_api_patterns: list[str] | None = None,
+        recursive_frames: bool = False,
+        wait_cfg: dict | None = None,
     ) -> dict:
         """Extract table data from the current page.
 
@@ -319,6 +321,8 @@ class BrowserSession:
             table_selector: CSS selector for the table element
             strategy: "dom" for DOM extraction, "network" for API interception
             data_api_patterns: URL patterns to intercept for network strategy
+            recursive_frames: Scan all frames recursively
+            wait_cfg: Configurable wait strategy dict
 
         Returns:
             Page snapshot dict with columns and rows
@@ -326,14 +330,231 @@ class BrowserSession:
         if not self._page:
             raise RuntimeError("Browser not started.")
 
-        if strategy == "network" and data_api_patterns:
-            # Try network interception first
+        if strategy in ("network", "network_then_dom") and data_api_patterns:
             network_data = await self._intercept_network_data(data_api_patterns)
             if network_data:
                 return network_data
 
-        # Fall back to DOM extraction
+        if recursive_frames:
+            result = await self._extract_table_from_all_frames(table_selector, wait_cfg)
+            if result["rows"]:
+                return result
+
         return await self._extract_table_from_dom(table_selector)
+
+    async def collect_frame_tree(self) -> dict:
+        """Collect hierarchical frame tree info for debugging."""
+        if not self._page:
+            return {"error": "no page", "frames": []}
+
+        tree: dict = {"url": self._page.url, "frames": []}
+
+        async def _scan_frame(frame, parent_dict):
+            info = {
+                "name": frame.name or "",
+                "url": frame.url[:200],
+                "child_count": len(frame.child_frames),
+                "selectors": {},
+                "children": [],
+            }
+            try:
+                info["selectors"] = await frame.evaluate("""() => ({
+                    "iframe": document.querySelectorAll('iframe').length,
+                    "table": document.querySelectorAll('table').length,
+                    "role_grid": document.querySelectorAll('[role="grid"],[role="table"]').length,
+                    "fr_report": document.querySelectorAll('.fr-report,.reportPane,.report-container').length,
+                    "rows": (() => { const ts=document.querySelectorAll('table'); let r=0; ts.forEach(t=>r+=t.querySelectorAll('tr').length); return r; })()
+                })""")
+            except Exception:
+                pass
+            parent_dict["children"].append(info)
+            for child in frame.child_frames:
+                await _scan_frame(child, info)
+
+        for f in self._page.frames:
+            await _scan_frame(f, tree)
+        return tree
+
+    async def wait_for_report_ready(self, wait_cfg: dict, artifacts_dir: Path | None = None) -> dict:
+        """Wait for FR report to be ready with configurable strategy."""
+        max_wait_ms = wait_cfg.get("max_wait_ms", 60000)
+        poll_interval_ms = wait_cfg.get("poll_interval_ms", 1000)
+        initial_delay_ms = wait_cfg.get("initial_delay_ms", 3000)
+        stable_rounds = wait_cfg.get("stable_rounds", 2)
+        min_rows = wait_cfg.get("min_rows", 1)
+        loading_selectors = wait_cfg.get("loading_selectors", [".loading", ".fr-loading", "[class*=loading]"])
+        ready_selectors = wait_cfg.get("ready_selectors", ["iframe", "table", "[role=grid]"])
+        require_iframe = wait_cfg.get("require_iframe", False)
+        require_table_or_grid = wait_cfg.get("require_table_or_grid", False)
+
+        if not self._page:
+            return {"ready": False, "error": "no page"}
+
+        await self._page.wait_for_timeout(initial_delay_ms)
+
+        # Wait for any loading indicators to disappear
+        for sel in loading_selectors:
+            try:
+                await self._page.wait_for_selector(sel, state="hidden", timeout=5000)
+            except Exception:
+                pass
+
+        # Wait for ready selectors
+        for sel in ready_selectors:
+            try:
+                await self._page.wait_for_selector(sel, timeout=10000)
+            except Exception:
+                pass
+
+        deadline = time.monotonic() + max_wait_ms / 1000
+        stable_count = 0
+        last_row_count: int | None = None
+        frame_tree = {}
+
+        while time.monotonic() < deadline:
+            try:
+                frame_tree = await self.collect_frame_tree()
+            except Exception:
+                pass
+
+            row_count = 0
+            for frame in self._page.frames:
+                try:
+                    count = await frame.evaluate("""() => {
+                        const tables = document.querySelectorAll('table');
+                        let r = 0;
+                        tables.forEach(t => { r += t.querySelectorAll('tr').length; });
+                        return r;
+                    }""")
+                    row_count += int(count or 0)
+                except Exception:
+                    pass
+
+            # Also check grid rows
+            if row_count == 0:
+                for frame in self._page.frames:
+                    try:
+                        count = await frame.evaluate("""() => {
+                            return document.querySelectorAll('[role="row"]').length;
+                        }""")
+                        row_count += int(count or 0)
+                    except Exception:
+                        pass
+
+            if row_count >= min_rows:
+                if row_count == last_row_count:
+                    stable_count += 1
+                else:
+                    stable_count = 1
+                    last_row_count = row_count
+                if stable_count >= stable_rounds:
+                    return {"ready": True, "row_count": row_count, "frame_tree": frame_tree}
+
+            await self._page.wait_for_timeout(poll_interval_ms)
+
+        # Timeout — save diagnostics
+        if artifacts_dir:
+            try:
+                import json as _json
+                (artifacts_dir / "frame_tree_timeout.json").write_text(
+                    _json.dumps(frame_tree, ensure_ascii=False, indent=2, default=str),
+                    encoding="utf-8")
+            except Exception:
+                pass
+
+        return {"ready": False, "row_count": last_row_count or 0, "frame_tree": frame_tree,
+                "error": f"Timeout after {max_wait_ms}ms"}
+
+    async def _extract_table_from_all_frames(self, table_selector: str, wait_cfg: dict | None = None) -> dict:
+        """Extract table data by scanning all frames recursively."""
+        wait_cfg = wait_cfg or {}
+        if wait_cfg:
+            try:
+                ready = await self.wait_for_report_ready(wait_cfg, self.artifacts_dir)
+            except Exception:
+                pass
+        else:
+            await self._page.wait_for_timeout(3000)
+
+        all_results: list[dict] = []
+
+        for frame in self._page.frames:
+            try:
+                data = await frame.evaluate("""
+                    (sel) => {
+                        function extractTable(el) {
+                            const rows = el.querySelectorAll('tr');
+                            if (rows.length === 0) return null;
+                            const headers = [];
+                            const theadRows = el.querySelector('thead') ? el.querySelector('thead').querySelectorAll('tr').length : 0;
+                            const headerRow = (theadRows > 0 && rows.length > theadRows - 1) ? rows[theadRows - 1] : rows[0];
+                            if (headerRow) {
+                                headerRow.querySelectorAll('th, td').forEach(c => headers.push(c.textContent.trim()));
+                            }
+                            const dataRows = [];
+                            const startIdx = theadRows > 0 ? theadRows : 1;
+                            for (let i = startIdx; i < rows.length; i++) {
+                                const cells = rows[i].querySelectorAll('td, th');
+                                if (cells.length === 0) continue;
+                                const row = {};
+                                let hasContent = false;
+                                cells.forEach((cell, j) => {
+                                    row[headers[j] || 'COL_' + j] = cell.textContent.trim();
+                                    if (cell.textContent.trim()) hasContent = true;
+                                });
+                                if (hasContent) dataRows.push(row);
+                            }
+                            return dataRows.length > 0 ? {columns: headers, rows: dataRows} : null;
+                        }
+
+                        let results = [];
+                        try { document.querySelectorAll(sel).forEach(t => { const r = extractTable(t); if (r) results.push(r); }); } catch(e) {}
+                        try { document.querySelectorAll('table').forEach(t => { const r = extractTable(t); if (r) results.push(r); }); } catch(e) {}
+                        try {
+                            document.querySelectorAll('[role="grid"], [role="table"]').forEach(el => {
+                                const rows = el.querySelectorAll('[role="row"]');
+                                if (rows.length === 0) return;
+                                const headers = [];
+                                rows[0].querySelectorAll('[role="columnheader"], [role="gridcell"]').forEach(c => headers.push(c.textContent.trim()));
+                                const dataRows = [];
+                                for (let i=1; i<rows.length; i++) {
+                                    const cells = rows[i].querySelectorAll('[role="gridcell"]');
+                                    if (cells.length === 0) continue;
+                                    const row = {};
+                                    let hc = false;
+                                    cells.forEach((c,j)=>{ row[headers[j]||'COL_'+j]=c.textContent.trim(); if(c.textContent.trim())hc=true; });
+                                    if (hc) dataRows.push(row);
+                                }
+                                if (dataRows.length > 0) results.push({columns:headers, rows:dataRows});
+                            });
+                        } catch(e) {}
+                        return results;
+                    }
+                """, table_selector)
+                if data and isinstance(data, list):
+                    for d in data:
+                        if d.get("rows"):
+                            all_results.append(d)
+            except Exception:
+                pass
+
+        if all_results:
+            all_results.sort(key=lambda x: -len(x.get("rows", [])))
+            best = all_results[0]
+            return {"source": "dom_frames", "columns": best.get("columns", []), "rows": best.get("rows", [])}
+        return {"source": "dom", "columns": [], "rows": []}
+
+    async def _save_network_candidates(self, artifacts_dir: Path | None = None) -> None:
+        """Save captured network responses to artifacts dir."""
+        if not artifacts_dir or not hasattr(self, "_captured_network_responses"):
+            return
+        try:
+            import json as _json
+            (artifacts_dir / "candidate_network_responses.json").write_text(
+                _json.dumps(getattr(self, "_captured_network_responses", []), ensure_ascii=False, indent=2, default=str),
+                encoding="utf-8")
+        except Exception:
+            pass
 
     async def _extract_table_from_dom(self, table_selector: str) -> dict:
         """Extract table data from DOM with enhanced iframe, aria-grid, and scroll support."""

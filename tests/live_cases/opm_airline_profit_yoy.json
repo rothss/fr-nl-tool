@@ -10,16 +10,52 @@
     "login_success_selector": "text=决策平台"
   },
   "params": {},
+  "wait": {
+    "max_wait_ms": 90000,
+    "poll_interval_ms": 1000,
+    "initial_delay_ms": 5000,
+    "stable_rounds": 3,
+    "min_rows": 1,
+    "require_iframe": true,
+    "require_table_or_grid": true,
+    "loading_selectors": [
+      ".loading",
+      ".fr-loading",
+      ".bi-loading",
+      ".x-mask-loading",
+      ".spinner",
+      "[class*=loading]",
+      "[class*=Loading]"
+    ],
+    "ready_selectors": [
+      "iframe",
+      "table",
+      "[role=grid]",
+      ".fr-report",
+      ".reportPane"
+    ]
+  },
   "page_extract": {
-    "strategy": "dom",
+    "strategy": "network_then_dom",
+    "data_api_patterns": [
+      "/decision",
+      "/reportserver",
+      "/ReportServer",
+      "/view/report",
+      "/view/form",
+      "/fr"
+    ],
     "table_selector": "table",
     "visible_row_limit": 20,
-    "wait_until": "networkidle"
+    "fallback_recursive_frames": true,
+    "save_frame_tree": true,
+    "save_network_candidates": true
   },
   "export": {
-    "button_text": "导出",
+    "button_text_patterns": ["导出", "Excel", "下载"],
     "format": "xlsx",
-    "timeout_ms": 120000
+    "scope": "current_filter_all_rows",
+    "timeout_ms": 90000
   },
   "compare": {
     "mode": "visible_prefix_ordered",
@@ -33,12 +69,5 @@
     "min_page_rows": 1,
     "min_export_rows": 1,
     "test_query": "净利润"
-  },
-  "wait": {
-    "network_idle_ms": 3000,
-    "table_stable_ms": 2000,
-    "loading_selectors": [".loading", ".fr-loading", ".x-loading"],
-    "ready_selectors": ["iframe", "table", ".fr-table"],
-    "max_wait_ms": 120000
   }
 }

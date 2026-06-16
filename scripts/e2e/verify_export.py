@@ -108,6 +108,22 @@ async def verify_export(
 
             await session.page.wait_for_timeout(2000)
 
+            # ── Save frame tree for diagnostics ──
+            frame_tree = {}
+            try:
+                frame_tree = await session.collect_frame_tree()
+                artifacts.save_json("frame_tree.json", frame_tree)
+            except Exception:
+                pass
+
+            # ── Configurable wait for FR report ready ──
+            wait_cfg = case.get("wait", {})
+            if wait_cfg:
+                ready = await session.wait_for_report_ready(wait_cfg, artifacts.base_dir)
+                if not ready.get("ready"):
+                    errors.append(f"report_not_ready: {ready.get('error', 'unknown')} (rows={ready.get('row_count', 0)})")
+                run_context["page_state"]["report_ready"] = ready
+
             # Try to capture page state (total_count/page_index/page_size)
             try:
                 page_state = await session.page.evaluate("""() => {

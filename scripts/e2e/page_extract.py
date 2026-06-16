@@ -152,11 +152,17 @@ async def extract_page_snapshot_async(
     table_selector = page_cfg.get("table_selector", "table")
     data_api_patterns = page_cfg.get("data_api_patterns")
     visible_row_limit = page_cfg.get("visible_row_limit", 20)
+    recursive_frames = page_cfg.get("fallback_recursive_frames", False)
+    save_frame_tree = page_cfg.get("save_frame_tree", False)
+    save_network_candidates = page_cfg.get("save_network_candidates", False)
+    wait_cfg = case_config.get("wait", {})
 
     raw_data = await session.extract_table_data(
         table_selector=table_selector,
         strategy=strategy,
         data_api_patterns=data_api_patterns,
+        recursive_frames=recursive_frames,
+        wait_cfg=wait_cfg,
     )
 
     params = case_config.get("params", {})
