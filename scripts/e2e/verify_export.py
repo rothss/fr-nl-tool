@@ -142,11 +142,25 @@ async def verify_export(
             except Exception:
                 pass
 
-            # Take screenshot before export
+            # Take screenshot before export (pre-wait)
             try:
                 await session.take_screenshot(artifacts.path("page_before_export.png"))
             except Exception as e:
                 errors.append(f"screenshot_failed: {e}")
+
+            # ── Save page_after_wait.png (post-report-ready) ──
+            try:
+                await session.take_screenshot(artifacts.path("page_after_wait.png"))
+            except Exception:
+                pass
+
+            # ── Save network diagnostics from extract_table_data ──
+            page_cfg = case.get("page_extract", {})
+            if page_cfg.get("save_network_candidates"):
+                try:
+                    await session.save_network_candidates(artifacts.base_dir)
+                except Exception as exc:
+                    artifacts.save_text("network_candidates_error.txt", str(exc))
 
             # 4. Extract page data
             page_snapshot = await extract_page_snapshot_async(session, case)

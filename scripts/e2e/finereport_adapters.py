@@ -105,6 +105,19 @@ def _adapt_list_of_dicts(data: Any, url: str) -> tuple[list[str], list[dict]]:
     return cols, data
 
 
+def _cell_text(cell: object) -> str:
+    """Extract text from a cell value, supporting dict and scalar types."""
+    if cell is None:
+        return ""
+    if isinstance(cell, dict):
+        for key in ("value", "text", "display", "content", "formattedValue", "html"):
+            val = cell.get(key)
+            if val is not None and val != "":
+                return str(val)
+        return ""
+    return str(cell)
+
+
 def _adapt_cell_matrix(data: dict, url: str) -> tuple[list[str], list[dict]]:
     """FineReport cell matrix: {cells: [[{value: ...}]]} structure"""
     if not isinstance(data, dict):
@@ -112,15 +125,11 @@ def _adapt_cell_matrix(data: dict, url: str) -> tuple[list[str], list[dict]]:
     cells = data.get("cells") or (data.get("data", {}).get("cells"))
     if not isinstance(cells, list) or len(cells) < 2:
         return [], []
-    # Extract values from {value: ...} cells
-    headers = []
-    for cell in cells[0]:
-        if isinstance(cell, dict):
-            headers.append(str(cell.get("value", "")))
-        elif cell is not None:
-            headers.append(str(cell))
-    if not headers:
+    # Extract headers using _cell_text
+    headers = [_cell_text(cell) for cell in cells[0]]
+    if not any(h for h in headers):
         return [], []
+    # Extract rows
     rows = []
     for row_cells in cells[1:]:
         if not isinstance(row_cells, list):
@@ -129,12 +138,7 @@ def _adapt_cell_matrix(data: dict, url: str) -> tuple[list[str], list[dict]]:
         for i, cell in enumerate(row_cells):
             if i >= len(headers):
                 break
-            if isinstance(cell, dict):
-                row[headers[i]] = str(cell.get("value", ""))
-            elif cell is not None:
-                row[headers[i]] = str(cell)
-            else:
-                row[headers[i]] = ""
+            row[headers[i]] = _cell_text(cell)
         if row:
             rows.append(row)
     return headers, rows

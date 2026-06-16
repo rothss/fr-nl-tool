@@ -72,6 +72,7 @@ class BrowserSession:
         self._logs: list[str] = []          # console log entries
         self._errors: list[str] = []        # page errors
         self._request_failures: list[dict] = []  # failed requests
+        self._captured_network_responses: list[dict] = []  # candidate FR responses
         self._har_recorded: bool = False
 
     @property
@@ -228,7 +229,7 @@ class BrowserSession:
                 pass
 
     def _setup_listeners(self):
-        """Set up console log, page error, and request failure listeners."""
+        """Set up console log, page error, request failure listeners, and network capture."""
         if not self._page:
             return
         self._page.on("console", lambda msg: self._logs.append(f"[{msg.type}] {msg.text}"))
@@ -237,6 +238,52 @@ class BrowserSession:
             "url": str(req.url)[:200] if hasattr(req, 'url') else str(req)[:200],
             "error": str(getattr(req, 'failure', 'unknown')),
         }))
+        # Capture all responses matching FR patterns
+        self._page.on("response", self._on_network_response)
+
+    async def _on_network_response(self, response):
+        """Capture candidate FR network responses for diagnostics."""
+        try:
+            url = response.url
+            content_type = response.headers.get("content-type", "")
+            status = response.status
+            if not any(p in url for p in ("/decision", "/report", "/fr", "/ReportServer")):
+                return
+            body = None
+            try:
+                body = await response.body()
+            except Exception:
+                pass
+            body_hash = ""
+            body_sample = ""
+            if body:
+                import hashlib
+                body_hash = "sha256:" + hashlib.sha256(body).hexdigest()
+                try:
+                    text = body.decode("utf-8", errors="replace")[:500]
+                except Exception:
+                    text = str(body)[:500]
+                body_sample = text
+                # Try to parse JSON body for adapter matching
+                try:
+                    import json as _json
+                    parsed = _json.loads(body.decode("utf-8"))
+                    self._captured_network_responses.append({
+                        "url": url[:300], "method": getattr(response.request, "method", "?"),
+                        "status": status, "content_type": content_type,
+                        "body_hash": body_hash, "body_sample": body_sample,
+                        "_body": parsed,
+                    })
+                    return
+                except Exception:
+                    pass
+            self._captured_network_responses.append({
+                "url": url[:300], "method": getattr(response.request, "method", "?"),
+                "status": status, "content_type": content_type,
+                "body_hash": body_hash, "body_sample": body_sample,
+            })
+        except Exception:
+            pass
 
     async def _save_artifacts(self):
         """Save trace, console logs, request failures to artifacts_dir."""
@@ -259,6 +306,8 @@ class BrowserSession:
             (self.artifacts_dir / "request_failed.json").write_text(
                 json.dumps(self._request_failures, ensure_ascii=False, indent=2), encoding="utf-8"
             )
+        # Save network candidates
+        await self._save_network_candidates(self.artifacts_dir)
 
     @property
     def logs(self) -> list[str]:
@@ -546,15 +595,42 @@ class BrowserSession:
 
     async def _save_network_candidates(self, artifacts_dir: Path | None = None) -> None:
         """Save captured network responses to artifacts dir."""
-        if not artifacts_dir or not hasattr(self, "_captured_network_responses"):
+        if not artifacts_dir:
             return
         try:
             import json as _json
+            data = getattr(self, "_captured_network_responses", [])
             (artifacts_dir / "candidate_network_responses.json").write_text(
-                _json.dumps(getattr(self, "_captured_network_responses", []), ensure_ascii=False, indent=2, default=str),
+                _json.dumps(data, ensure_ascii=False, indent=2, default=str),
                 encoding="utf-8")
+            # Also collect matched responses (successfully parsed)
+            from .finereport_adapters import try_all_adapters
+            matched = []
+            for entry in data:
+                try:
+                    body = entry.get("_body")
+                    if body is not None:
+                        cols, rows = try_all_adapters(body, entry.get("url", ""))
+                        if cols and len(rows) > 0:
+                            matched.append({
+                                "url": entry.get("url", ""),
+                                "status": entry.get("status", 0),
+                                "content_type": entry.get("content_type", ""),
+                                "body_hash": entry.get("body_hash", ""),
+                                "columns": cols,
+                                "row_count": len(rows),
+                                "used_as_page_snapshot": False,
+                            })
+                except Exception:
+                    pass
+            (artifacts_dir / "matched_network_responses.json").write_text(
+                _json.dumps(matched, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass
+
+    async def save_network_candidates(self, output_dir: Path) -> None:
+        """Public: save candidate + matched network response diagnostics."""
+        await self._save_network_candidates(output_dir)
 
     async def _extract_table_from_dom(self, table_selector: str) -> dict:
         """Extract table data from DOM with enhanced iframe, aria-grid, and scroll support."""
